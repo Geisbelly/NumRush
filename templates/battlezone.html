@@ -1,0 +1,770 @@
+{% extends "base.html" %}
+{% block title %}BATTLEZONE — {{ room_name }}{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* ── Layout ── */
+  .bz-layout {
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    gap: 1.2rem;
+    padding: 1.2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    min-height: calc(100vh - 60px);
+  }
+  @media (max-width: 900px) {
+    .bz-layout { grid-template-columns: 1fr; }
+    .bz-sidebar { height: 340px; }
+  }
+
+  .bz-main { display: flex; flex-direction: column; gap: 1rem; }
+
+  /* ── Room header ── */
+  .bz-header {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: .8rem;
+  }
+  .bz-title { font-family: var(--font-head); font-size: 1rem; font-weight: 700; }
+  .bz-title small { color: var(--muted); font-size: .75rem; font-weight: 400; margin-left: .5rem; }
+
+  /* ── Canvas wrapper ── */
+  .canvas-wrap {
+    position: relative;
+    background: #0a0f1a;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    cursor: crosshair;
+  }
+  #bz-canvas {
+    display: block;
+    max-width: 100%;
+  }
+
+  /* ── Overlays ── */
+  .bz-overlay {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: rgba(7,10,16,.85);
+    gap: 1.2rem;
+    z-index: 10;
+  }
+  .bz-overlay.hidden { display: none; }
+  .bz-overlay-title {
+    font-family: var(--font-head); font-size: 2rem; font-weight: 900;
+    background: linear-gradient(135deg, var(--red), var(--amber));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    letter-spacing: .05em;
+  }
+  .bz-overlay-sub { color: var(--muted); font-size: .9rem; }
+
+  /* Dead overlay */
+  .bz-dead-overlay {
+    position: absolute; inset: 0;
+    display: none; align-items: center; justify-content: center;
+    flex-direction: column; gap: .8rem;
+    background: rgba(248,113,113,.08);
+    border: 2px solid var(--red);
+    border-radius: 12px;
+    z-index: 9; pointer-events: none;
+  }
+  .bz-dead-overlay.show { display: flex; }
+  .bz-dead-title {
+    font-family: var(--font-head); font-size: 2.5rem; font-weight: 900;
+    color: var(--red); text-shadow: 0 0 30px rgba(248,113,113,.6);
+  }
+  .bz-dead-sub { color: var(--muted); font-size: .9rem; }
+
+  /* Winner overlay */
+  .bz-win-overlay {
+    position: absolute; inset: 0;
+    display: none; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 1rem;
+    background: rgba(7,10,16,.9);
+    border-radius: 12px;
+    z-index: 11;
+  }
+  .bz-win-overlay.show { display: flex; }
+  .bz-win-crown { font-size: 5rem; animation: bz-bounce 1s ease infinite alternate; }
+  @keyframes bz-bounce { from{transform:translateY(0)} to{transform:translateY(-12px)} }
+  .bz-win-name {
+    font-family: var(--font-head); font-size: 2.2rem; font-weight: 900;
+    background: linear-gradient(90deg, var(--cyan), var(--amber));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .bz-win-sub { color: var(--muted); font-size: .9rem; }
+  .bz-scoreboard {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1rem 1.5rem; min-width: 240px;
+    font-size: .85rem;
+  }
+  .bz-scoreboard table { width: 100%; border-collapse: collapse; }
+  .bz-scoreboard th {
+    font-family: var(--font-head); font-size: .65rem; letter-spacing: .1em;
+    color: var(--muted); text-transform: uppercase;
+    padding: .3rem .4rem; border-bottom: 1px solid var(--border); text-align: left;
+  }
+  .bz-scoreboard td { padding: .4rem .4rem; }
+  .bz-scoreboard tr.winner td { color: var(--amber); font-weight: 700; }
+
+  /* ── HUD ── */
+  .bz-hud {
+    display: flex; align-items: center; gap: 1.2rem; flex-wrap: wrap;
+  }
+  .hud-hp-wrap {
+    display: flex; align-items: center; gap: .5rem; flex: 1;
+  }
+  .hud-hp-label {
+    font-family: var(--font-head); font-size: .7rem; color: var(--muted);
+    letter-spacing: .1em; white-space: nowrap;
+  }
+  .hud-hp-bar {
+    flex: 1; height: 10px; background: var(--border); border-radius: 99px; overflow: hidden;
+  }
+  .hud-hp-fill {
+    height: 100%; border-radius: 99px;
+    background: linear-gradient(90deg, var(--green), var(--cyan));
+    transition: width .2s, background .2s;
+  }
+  .hud-hp-val {
+    font-family: var(--font-mono); font-size: .8rem; color: var(--green);
+    min-width: 36px; text-align: right;
+  }
+  .hud-zone-wrap {
+    display: flex; align-items: center; gap: .4rem;
+  }
+  .hud-zone-label { font-family: var(--font-head); font-size: .7rem; color: var(--muted); letter-spacing: .08em; }
+  .hud-zone-val { font-family: var(--font-mono); font-size: .8rem; color: var(--amber); }
+  .hud-alive-wrap {
+    display: flex; align-items: center; gap: .4rem;
+  }
+  .hud-alive-label { font-family: var(--font-head); font-size: .7rem; color: var(--muted); }
+  .hud-alive-val { font-family: var(--font-mono); font-size: .9rem; color: var(--red); font-weight: 700; }
+
+  /* ── Kill feed ── */
+  .kill-feed {
+    position: absolute; top: .8rem; right: .8rem;
+    display: flex; flex-direction: column; gap: .3rem;
+    z-index: 8; pointer-events: none;
+  }
+  .kill-entry {
+    background: rgba(0,0,0,.7); border: 1px solid var(--border);
+    border-radius: 6px; padding: .25rem .6rem;
+    font-size: .75rem; font-weight: 600; color: var(--text);
+    animation: kf-in .2s ease;
+  }
+  @keyframes kf-in { from{opacity:0;transform:translateX(20px)} to{opacity:1;transform:none} }
+  .kill-entry .killer { color: var(--cyan); }
+  .kill-entry .victim { color: var(--red); }
+
+  /* ── Controls hint ── */
+  .controls-hint {
+    position: absolute; bottom: .6rem; left: .8rem;
+    font-size: .68rem; color: rgba(107,114,128,.7);
+    pointer-events: none; z-index: 8;
+    font-family: var(--font-mono);
+  }
+
+  /* ── Sidebar ── */
+  .bz-sidebar {
+    display: flex; flex-direction: column; gap: 1rem;
+  }
+
+  /* Players panel */
+  .bz-players-panel {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1rem;
+  }
+  .bz-players-panel h3 {
+    font-family: var(--font-head); font-size: .72rem; font-weight: 700;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
+    margin-bottom: .8rem;
+  }
+  .bz-player-row {
+    display: flex; align-items: center; gap: .6rem;
+    padding: .4rem 0; border-bottom: 1px solid var(--border);
+    font-size: .83rem;
+  }
+  .bz-player-row:last-child { border-bottom: none; }
+  .bz-color-dot {
+    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+  }
+  .bz-player-name { flex: 1; font-weight: 600; }
+  .bz-player-name.dead { color: var(--muted); text-decoration: line-through; }
+  .bz-player-hp-bar {
+    width: 60px; height: 6px; background: var(--border); border-radius: 99px; overflow: hidden;
+  }
+  .bz-player-hp-fill {
+    height: 100%; border-radius: 99px; transition: width .3s;
+    background: linear-gradient(90deg, var(--green), var(--cyan));
+  }
+  .bz-player-kills { font-size: .72rem; color: var(--amber); min-width: 28px; text-align: right; }
+
+  /* Chat sidebar */
+  .bz-chat { flex: 1; min-height: 0; }
+  .bz-chat .chat-box { height: 100%; min-height: 200px; }
+
+  /* Waiting state panel */
+  .bz-wait-panel {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 2rem; text-align: center;
+  }
+  .bz-wait-icon { font-size: 3.5rem; display: block; margin-bottom: 1rem; animation: float 3s ease-in-out infinite; }
+  @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+  .bz-wait-title { font-family: var(--font-head); font-size: 1.1rem; font-weight: 900; margin-bottom: .4rem; }
+  .bz-wait-sub { color: var(--muted); font-size: .85rem; margin-bottom: 1.4rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bz-layout">
+  <!-- MAIN: Arena + HUD -->
+  <div class="bz-main">
+    <div class="bz-header">
+      <div class="bz-title">
+        🔫 BATTLEZONE
+        <small>{{ room_name }}</small>
+        <span id="bz-status-badge"></span>
+      </div>
+      <div style="display:flex;gap:.6rem;align-items:center">
+        <a href="/lobby" class="btn btn-ghost btn-sm" onclick="leaveConfirm(event)">← Sair</a>
+      </div>
+    </div>
+
+    <!-- Waiting state -->
+    <div id="bz-waiting" class="bz-wait-panel">
+      <span class="bz-wait-icon">🎯</span>
+      <div class="bz-wait-title">Aguardando jogadores</div>
+      <div class="bz-wait-sub" id="bz-wait-sub">Mínimo 2 jogadores para iniciar.</div>
+      <div id="bz-host-controls" style="display:none">
+        <button class="btn btn-primary" id="bz-start-btn" onclick="bzStart()" disabled>
+          🔫 Iniciar Batalha
+        </button>
+      </div>
+    </div>
+
+    <!-- Arena canvas -->
+    <div class="canvas-wrap" id="bz-canvas-wrap" style="display:none">
+      <canvas id="bz-canvas" width="800" height="600"></canvas>
+
+      <!-- Kill feed -->
+      <div class="kill-feed" id="kill-feed"></div>
+
+      <!-- Controls hint -->
+      <div class="controls-hint">WASD mover · Mouse mirar · Clique atirar</div>
+
+      <!-- Dead overlay -->
+      <div class="bz-dead-overlay" id="bz-dead-overlay">
+        <div class="bz-dead-title">☠️ ELIMINADO</div>
+        <div class="bz-dead-sub">Aguarde o fim da partida...</div>
+      </div>
+
+      <!-- Winner overlay -->
+      <div class="bz-win-overlay" id="bz-win-overlay">
+        <div class="bz-win-crown">🏆</div>
+        <div class="bz-win-name" id="bz-win-name">—</div>
+        <div class="bz-win-sub" id="bz-win-sub"></div>
+        <div class="bz-scoreboard" id="bz-scoreboard-wrap"></div>
+        <div id="bz-restart-controls" style="display:none">
+          <button class="btn btn-primary" onclick="bzRestart()">🔄 Nova Batalha</button>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="window.location.href='/lobby'">← Voltar ao Lobby</button>
+      </div>
+    </div>
+
+    <!-- HUD (só durante jogo) -->
+    <div id="bz-hud" class="bz-hud" style="display:none">
+      <div class="hud-hp-wrap">
+        <span class="hud-hp-label">❤️ HP</span>
+        <div class="hud-hp-bar"><div class="hud-hp-fill" id="hud-hp-fill" style="width:100%"></div></div>
+        <span class="hud-hp-val" id="hud-hp-val">100</span>
+      </div>
+      <div class="hud-zone-wrap">
+        <span class="hud-zone-label">🌀 ZONA</span>
+        <span class="hud-zone-val" id="hud-zone-val">—</span>
+      </div>
+      <div class="hud-alive-wrap">
+        <span class="hud-alive-label">👥 VIVOS</span>
+        <span class="hud-alive-val" id="hud-alive-val">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIDEBAR: Players + Chat -->
+  <div class="bz-sidebar">
+    <!-- Players -->
+    <div class="bz-players-panel">
+      <h3>Jogadores</h3>
+      <div id="bz-players-list"></div>
+    </div>
+
+    <!-- Chat -->
+    <div class="bz-chat">
+      <div class="chat-box">
+        <div class="chat-header"><div class="chat-dot"></div>Chat da Sala</div>
+        <div class="chat-messages" id="bz-chat-msgs"></div>
+        <div class="chat-footer">
+          <input type="text" id="bz-chat-input" placeholder="Mensagem..." maxlength="200">
+          <button class="chat-send-btn" onclick="bzChatSend()">↑</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+  const ME      = "{{ username }}";
+  const ROOM_ID = "{{ room_id }}";
+  const IS_HOST_INIT = {{ 'true' if username == room_host else 'false' }};
+
+  let isHost    = IS_HOST_INIT;
+  let gameState = 'waiting';
+  let myColor   = '#22d3ee';
+  let isDead    = false;
+
+  // ── Canvas setup ────────────────────────────────────────────────────────────
+  const canvas  = document.getElementById('bz-canvas');
+  const ctx     = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  // ── Input state ─────────────────────────────────────────────────────────────
+  const keys = { up:false, down:false, left:false, right:false };
+  let mouseAngle  = 0;
+  let shootPending = false;
+
+  // ── Server state (latest tick) ───────────────────────────────────────────────
+  let serverState = null;
+
+  // ── Socket ───────────────────────────────────────────────────────────────────
+  const socket = io();
+
+  if (typeof attachPresenceHandlers === 'function') attachPresenceHandlers(socket);
+  if (typeof attachCryptoHandlers   === 'function') attachCryptoHandlers(socket);
+  if (typeof dmAttachSocket         === 'function') dmAttachSocket(socket);
+
+  socket.on('connect', () => {
+    setConnected();
+    socket.emit('join_game_room', {room_id: ROOM_ID});
+  });
+
+  socket.on('join_ok', ({room}) => {
+    updatePlayersList(room.players.map(p => ({username:p, hp:100, alive:true, kills:0, color:'#22d3ee'})));
+    isHost     = room.host === ME;
+    gameState  = room.state;
+    renderHostControls();
+    room.chat_sala.forEach(m => appendChat(m));
+    if (gameState === 'waiting') showWaiting();
+    if (gameState === 'playing') showArena();
+    if (gameState === 'finished') showArena();
+    setBadge(gameState);
+  });
+
+  socket.on('err', ({msg}) => toast(msg, 'error'));
+
+  // ── Lobby / player events ───────────────────────────────────────────────────
+  socket.on('player_joined', ({username, players}) => {
+    appendSystem(`👤 ${username} entrou.`);
+    if (players.length >= 2) {
+      document.getElementById('bz-start-btn').disabled = false;
+      document.getElementById('bz-wait-sub').textContent =
+        isHost ? 'Pronto! Inicie a batalha.' : 'Aguardando o host iniciar.';
+    }
+  });
+
+  socket.on('player_left', ({username, players}) => {
+    appendSystem(`👋 ${username} saiu.`);
+    if (players.length < 2) {
+      document.getElementById('bz-start-btn').disabled = true;
+      document.getElementById('bz-wait-sub').textContent = 'Mínimo 2 jogadores para iniciar.';
+    }
+  });
+
+  socket.on('new_host', ({host}) => {
+    isHost = host === ME;
+    renderHostControls();
+    appendSystem(`👑 ${host} é o novo host.`);
+  });
+
+  // ── Battle Royale events ────────────────────────────────────────────────────
+  socket.on('bz_started', ({players, state}) => {
+    gameState = 'playing';
+    isDead    = false;
+    serverState = state;
+    myColor = state.players[ME]?.color || '#22d3ee';
+    showArena();
+    setBadge('playing');
+    appendSystem('🔫 Batalha iniciada! Boa sorte!');
+    startInputLoop();
+  });
+
+  socket.on('bz_tick', (snap) => {
+    serverState = snap;
+    renderFrame(snap);
+    updateHUD(snap);
+    updatePlayersList(
+      Object.entries(snap.players).map(([u,s]) => ({username:u, ...s}))
+    );
+  });
+
+  socket.on('bz_eliminated', ({victim, killer, kills}) => {
+    addKillFeed(victim, killer);
+    if (victim === ME) {
+      isDead = true;
+      document.getElementById('bz-dead-overlay').classList.add('show');
+    }
+    appendSystem(killer === 'zona'
+      ? `☠️ ${victim} foi eliminado pela zona!`
+      : `💀 ${killer} eliminou ${victim}! (${kills} kills)`);
+  });
+
+  socket.on('bz_game_over', ({winner, scoreboard}) => {
+    gameState = 'finished';
+    setBadge('finished');
+    showWinner(winner, scoreboard);
+    stopInputLoop();
+  });
+
+  socket.on('bz_reset', ({players, host}) => {
+    isHost    = host === ME;
+    gameState = 'waiting';
+    isDead    = false;
+    serverState = null;
+    stopInputLoop();
+    showWaiting();
+    setBadge('waiting');
+    renderHostControls();
+    appendSystem('🔄 Sala reiniciada.');
+  });
+
+  // Chat
+  socket.on('room_message_sala', (msg) => appendChat(msg));
+
+  // ── Render ──────────────────────────────────────────────────────────────────
+  function renderFrame(snap) {
+    ctx.clearRect(0, 0, W, H);
+
+    // Background grid
+    ctx.fillStyle = '#070a10';
+    ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = 'rgba(31,41,55,.6)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+    for (let y = 0; y < H; y += 40) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+
+    // Safe zone (white circle)
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(snap.zone_cx, snap.zone_cy, snap.zone_r, 0, Math.PI*2);
+    ctx.strokeStyle = 'rgba(255,255,255,.35)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Danger zone outside — red vignette overlay clipped
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, W, H);
+    ctx.arc(snap.zone_cx, snap.zone_cy, snap.zone_r, 0, Math.PI*2, true);
+    ctx.fillStyle = 'rgba(248,113,113,.07)';
+    ctx.fill('evenodd');
+    ctx.restore();
+    ctx.restore();
+
+    // Bullets
+    snap.bullets.forEach(b => {
+      const bColor = snap.players[b.owner]?.color || '#fff';
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, 4, 0, Math.PI*2);
+      ctx.fillStyle = bColor;
+      ctx.shadowColor = bColor;
+      ctx.shadowBlur = 8;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    });
+
+    // Players
+    Object.entries(snap.players).forEach(([pname, ps]) => {
+      if (!ps.alive) {
+        // Skull for dead players
+        ctx.font = '18px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.globalAlpha = 0.4;
+        ctx.fillText('☠', ps.x, ps.y);
+        ctx.globalAlpha = 1;
+        return;
+      }
+
+      const isMe = pname === ME;
+      const r    = 14;
+
+      // Glow for self
+      if (isMe) {
+        ctx.beginPath();
+        ctx.arc(ps.x, ps.y, r + 4, 0, Math.PI*2);
+        ctx.fillStyle = ps.color + '33';
+        ctx.fill();
+      }
+
+      // Body circle
+      ctx.beginPath();
+      ctx.arc(ps.x, ps.y, r, 0, Math.PI*2);
+      ctx.fillStyle = ps.color;
+      ctx.fill();
+      ctx.strokeStyle = isMe ? '#fff' : 'rgba(255,255,255,.4)';
+      ctx.lineWidth = isMe ? 2 : 1;
+      ctx.stroke();
+
+      // Direction indicator (gun barrel)
+      const angle = ps.angle || 0;
+      const bx = ps.x + Math.cos(angle) * (r + 6);
+      const by = ps.y + Math.sin(angle) * (r + 6);
+      ctx.beginPath();
+      ctx.moveTo(ps.x, ps.y);
+      ctx.lineTo(bx, by);
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      // HP bar above player
+      const barW = 30, barH = 4;
+      const barX = ps.x - barW/2, barY = ps.y - r - 10;
+      ctx.fillStyle = '#1f2937';
+      ctx.fillRect(barX, barY, barW, barH);
+      const hpRatio = ps.hp / 100;
+      const hpColor = hpRatio > 0.5 ? '#4ade80' : hpRatio > 0.25 ? '#f59e0b' : '#f87171';
+      ctx.fillStyle = hpColor;
+      ctx.fillRect(barX, barY, barW * hpRatio, barH);
+
+      // Name label
+      ctx.font = `bold 11px 'Exo 2', sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillStyle = isMe ? '#fff' : 'rgba(255,255,255,.75)';
+      ctx.fillText(pname + (isMe ? ' (você)' : ''), ps.x, barY - 2);
+    });
+  }
+
+  function updateHUD(snap) {
+    const me = snap.players?.[ME];
+    if (!me) return;
+
+    const hp     = me.hp;
+    const hpFill = document.getElementById('hud-hp-fill');
+    const hpVal  = document.getElementById('hud-hp-val');
+    const hpColor = hp > 50 ? '#4ade80' : hp > 25 ? '#f59e0b' : '#f87171';
+    hpFill.style.width      = hp + '%';
+    hpFill.style.background = hpColor;
+    hpVal.style.color       = hpColor;
+    hpVal.textContent       = hp;
+
+    const zoneVal = document.getElementById('hud-zone-val');
+    zoneVal.textContent = Math.round(snap.zone_r) + 'px';
+
+    const alive = Object.values(snap.players).filter(p => p.alive).length;
+    document.getElementById('hud-alive-val').textContent = alive;
+  }
+
+  function updatePlayersList(players) {
+    const box = document.getElementById('bz-players-list');
+    box.innerHTML = players.map(p => `
+      <div class="bz-player-row">
+        <div class="bz-color-dot" style="background:${p.color||'#6b7280'}"></div>
+        <div class="bz-player-name${p.alive===false?' dead':''}">${escHtml(p.username)}${p.username===ME?' (você)':''}</div>
+        <div class="bz-player-hp-bar">
+          <div class="bz-player-hp-fill" style="width:${p.hp||0}%"></div>
+        </div>
+        <div class="bz-player-kills">💀 ${p.kills||0}</div>
+      </div>`).join('');
+  }
+
+  // ── Kill feed ────────────────────────────────────────────────────────────────
+  function addKillFeed(victim, killer) {
+    const feed = document.getElementById('kill-feed');
+    const el   = document.createElement('div');
+    el.className = 'kill-entry';
+    el.innerHTML = killer === 'zona'
+      ? `🌀 zona eliminou <span class="victim">${escHtml(victim)}</span>`
+      : `<span class="killer">${escHtml(killer)}</span> 💀 <span class="victim">${escHtml(victim)}</span>`;
+    feed.prepend(el);
+    setTimeout(() => el.remove(), 5000);
+  }
+
+  // ── Input loop (envia inputs ao servidor 20x/s) ──────────────────────────────
+  let inputInterval = null;
+
+  function startInputLoop() {
+    if (inputInterval) return;
+    inputInterval = setInterval(() => {
+      if (isDead) return;
+      socket.emit('bz_input', {
+        room_id: ROOM_ID,
+        up:    keys.up,
+        down:  keys.down,
+        left:  keys.left,
+        right: keys.right,
+        shoot: shootPending,
+        angle: mouseAngle,
+      });
+      shootPending = false;
+    }, 50);   // 20 inputs/s
+  }
+
+  function stopInputLoop() {
+    if (inputInterval) { clearInterval(inputInterval); inputInterval = null; }
+  }
+
+  // ── Keyboard ─────────────────────────────────────────────────────────────────
+  const keyMap = {
+    'w': 'up', 'arrowup': 'up',
+    's': 'down', 'arrowdown': 'down',
+    'a': 'left', 'arrowleft': 'left',
+    'd': 'right', 'arrowright': 'right',
+  };
+
+  document.addEventListener('keydown', e => {
+    if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
+    const k = keyMap[e.key.toLowerCase()];
+    if (k) { keys[k] = true; e.preventDefault(); }
+  });
+  document.addEventListener('keyup', e => {
+    const k = keyMap[e.key.toLowerCase()];
+    if (k) keys[k] = false;
+  });
+
+  // ── Mouse (mirar + atirar) ───────────────────────────────────────────────────
+  canvas.addEventListener('mousemove', e => {
+    if (gameState !== 'playing' || isDead || !serverState) return;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = W / rect.width;
+    const scaleY = H / rect.height;
+    const mx = (e.clientX - rect.left) * scaleX;
+    const my = (e.clientY - rect.top)  * scaleY;
+    const me = serverState?.players?.[ME];
+    if (!me) return;
+    mouseAngle = Math.atan2(my - me.y, mx - me.x);
+  });
+
+  canvas.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    if (gameState !== 'playing' || isDead) return;
+    shootPending = true;
+  });
+
+  // Mobile touch shoot
+  canvas.addEventListener('touchstart', e => {
+    e.preventDefault();
+    if (gameState !== 'playing' || isDead) return;
+    const touch = e.touches[0];
+    const rect  = canvas.getBoundingClientRect();
+    const scaleX = W / rect.width;
+    const scaleY = H / rect.height;
+    const mx = (touch.clientX - rect.left) * scaleX;
+    const my = (touch.clientY - rect.top)  * scaleY;
+    const me = serverState?.players?.[ME];
+    if (me) mouseAngle = Math.atan2(my - me.y, mx - me.x);
+    shootPending = true;
+  }, {passive: false});
+
+  // ── UI helpers ───────────────────────────────────────────────────────────────
+  function showWaiting() {
+    document.getElementById('bz-waiting').style.display    = '';
+    document.getElementById('bz-canvas-wrap').style.display = 'none';
+    document.getElementById('bz-hud').style.display        = 'none';
+    document.getElementById('bz-dead-overlay').classList.remove('show');
+    document.getElementById('bz-win-overlay').classList.remove('show');
+  }
+
+  function showArena() {
+    document.getElementById('bz-waiting').style.display    = 'none';
+    document.getElementById('bz-canvas-wrap').style.display = '';
+    document.getElementById('bz-hud').style.display        = 'flex';
+  }
+
+  function renderHostControls() {
+    const hc = document.getElementById('bz-host-controls');
+    if (hc) hc.style.display = isHost ? '' : 'none';
+    const rc = document.getElementById('bz-restart-controls');
+    if (rc) rc.style.display = isHost ? '' : 'none';
+  }
+
+  function setBadge(state) {
+    const map = {
+      waiting:  '<span class="badge badge-amber">Aguardando</span>',
+      playing:  '<span class="badge badge-green">Em batalha!</span>',
+      finished: '<span class="badge badge-red">Finalizado</span>',
+    };
+    document.getElementById('bz-status-badge').innerHTML = map[state] || '';
+  }
+
+  function showWinner(winner, scoreboard) {
+    const isWinner = winner === ME;
+    document.getElementById('bz-dead-overlay').classList.remove('show');
+    document.getElementById('bz-win-overlay').classList.add('show');
+    document.getElementById('bz-win-name').textContent = winner || '—';
+    document.getElementById('bz-win-sub').textContent  =
+      !winner ? 'Empate — todos eliminados!'
+      : isWinner ? '🏆 VOCÊ VENCEU! Booyah!' : `${winner} venceu a batalha!`;
+
+    const rows = Object.entries(scoreboard)
+      .sort((a,b) => b[1].kills - a[1].kills)
+      .map(([p, s]) => `<tr class="${p===winner?'winner':''}">
+          <td>${escHtml(p)}${p===ME?' (você)':''}</td>
+          <td>${s.kills} kills</td>
+          <td>${s.hp} hp</td>
+        </tr>`).join('');
+    document.getElementById('bz-scoreboard-wrap').innerHTML = `
+      <table class="bz-scoreboard" style="width:100%">
+        <thead><tr><th>Jogador</th><th>Kills</th><th>HP</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+
+    renderHostControls();
+    toast(isWinner ? '🏆 Booyah! Você venceu!' : `${winner} venceu.`, isWinner ? 'win' : 'info', 6000);
+  }
+
+  // ── Actions ──────────────────────────────────────────────────────────────────
+  function bzStart() {
+    socket.emit('bz_start', {room_id: ROOM_ID});
+  }
+
+  function bzRestart() {
+    socket.emit('bz_restart', {room_id: ROOM_ID});
+  }
+
+  function leaveConfirm(e) {
+    if (gameState === 'playing') {
+      if (!confirm('Sair durante a batalha te elimina. Confirmar?')) { e.preventDefault(); return; }
+    }
+    socket.emit('leave_game_room', {room_id: ROOM_ID});
+  }
+
+  // ── Chat ─────────────────────────────────────────────────────────────────────
+  const chatBox = document.getElementById('bz-chat-msgs');
+
+  function appendChat(msg) {
+    chatBox.appendChild(formatMsg(msg, ME));
+    scrollToBottom(chatBox);
+  }
+  function appendSystem(text) {
+    chatBox.appendChild(formatSystem(text));
+    scrollToBottom(chatBox);
+  }
+  function bzChatSend() {
+    const inp = document.getElementById('bz-chat-input');
+    const msg = inp.value.trim();
+    if (!msg) return;
+    secureEmit(socket, 'room_chat', {room_id: ROOM_ID, chat_type: 'sala', msg});
+    inp.value = '';
+  }
+  document.getElementById('bz-chat-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') bzChatSend();
+  });
+</script>
+{% endblock %}

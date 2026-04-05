@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}NUMRUSH — Entrar{% endblock %}
+
+{% block extra_head %}
+<style>
+  .auth-page {
+    min-height: calc(100vh - 60px);
+    display: flex; align-items: center; justify-content: center;
+    padding: 2rem;
+  }
+  .auth-box {
+    width: 100%; max-width: 420px;
+  }
+  .auth-header { text-align: center; margin-bottom: 2rem; }
+  .auth-logo {
+    font-family: var(--font-head); font-size: 2.4rem; font-weight: 900;
+    background: linear-gradient(135deg, var(--cyan), var(--amber));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    letter-spacing: .05em; display: block; margin-bottom: .5rem;
+  }
+  .auth-header p { color: var(--muted); font-size: .9rem; }
+
+  .auth-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 2.5rem;
+    box-shadow: 0 25px 60px rgba(0,0,0,.4);
+  }
+
+  /* Toggle tabs */
+  .auth-tabs {
+    display: flex; margin-bottom: 2rem;
+    background: var(--surface); border-radius: 8px; padding: 4px;
+  }
+  .auth-tab {
+    flex: 1; padding: .55rem; text-align: center;
+    font-family: var(--font-head); font-size: .7rem; font-weight: 700;
+    letter-spacing: .1em; text-transform: uppercase; cursor: pointer;
+    border-radius: 6px; transition: all .2s;
+    color: var(--muted); border: none; background: none;
+  }
+  .auth-tab.active {
+    background: var(--cyan); color: #000;
+    box-shadow: 0 0 16px rgba(34,211,238,.3);
+  }
+
+  .auth-form { display: flex; flex-direction: column; gap: 1.2rem; }
+  .auth-submit { width: 100%; padding: .8rem; font-size: .85rem; }
+
+  .auth-footer {
+    text-align: center; margin-top: 1.5rem;
+    font-size: .82rem; color: var(--muted);
+  }
+  .auth-footer a { color: var(--cyan); text-decoration: none; }
+  .auth-footer a:hover { text-decoration: underline; }
+
+  .auth-deco {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background:
+      radial-gradient(circle at 20% 50%, rgba(34,211,238,.06), transparent 50%),
+      radial-gradient(circle at 80% 50%, rgba(245,158,11,.05), transparent 50%);
+  }
+  .auth-page { position: relative; z-index: 1; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="auth-deco"></div>
+<div class="auth-page">
+  <div class="auth-box">
+    <div class="auth-header">
+      <span class="auth-logo">NUMRUSH</span>
+      <p>Entre para competir em tempo real</p>
+    </div>
+
+    <div class="auth-card">
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="tab-login" onclick="switchTab('login')">Login</button>
+        <button class="auth-tab" id="tab-register" onclick="switchTab('register')">Cadastro</button>
+      </div>
+
+      {% if error %}
+        <div class="alert alert-error" style="margin-bottom:1.2rem">{{ error }}</div>
+      {% endif %}
+
+      <form method="POST" class="auth-form" id="auth-form">
+        <div class="form-group">
+          <label class="form-label">Nome de usuário</label>
+          <input type="text" name="username" class="form-input"
+                 placeholder="seu_nick" required minlength="3" maxlength="20"
+                 autocomplete="username" autofocus>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Senha</label>
+          <input type="password" name="password" class="form-input"
+                 placeholder="••••••••" required minlength="4"
+                 autocomplete="current-password">
+        </div>
+        <input type="hidden" name="action" id="action-input" value="login">
+        <button type="submit" class="btn btn-primary auth-submit" id="submit-btn">
+          Entrar →
+        </button>
+      </form>
+
+      <div class="auth-footer">
+        Ao jogar você aceita as regras do jogo.<br>
+        Dúvidas? Consulte o professor. 🎓
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function switchTab(tab) {
+    const isLogin = tab === 'login';
+    document.getElementById('tab-login').classList.toggle('active', isLogin);
+    document.getElementById('tab-register').classList.toggle('active', !isLogin);
+    document.getElementById('action-input').value = tab;
+    document.getElementById('submit-btn').textContent = isLogin ? 'Entrar →' : 'Criar conta →';
+    document.querySelector('[autocomplete="current-password"]').autocomplete = isLogin ? 'current-password' : 'new-password';
+  }
+
+  // If there's an error and we were registering, keep register tab active
+  {% if error and request.form.get('action') == 'register' %}
+    switchTab('register');
+  {% endif %}
+</script>
+{% endblock %}

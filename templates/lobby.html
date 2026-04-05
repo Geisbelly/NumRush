@@ -1,0 +1,352 @@
+{% extends "base.html" %}
+{% block title %}NUMRUSH — Lobby{% endblock %}
+
+{% block extra_head %}
+<style>
+  .lobby-layout {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 1.5rem;
+    padding: 1.5rem;
+    max-width: 1300px;
+    margin: 0 auto;
+    min-height: calc(100vh - 60px);
+  }
+  @media (max-width: 900px) {
+    .lobby-layout { grid-template-columns: 1fr; }
+    .chat-col { height: 360px; }
+  }
+
+  /* Left col */
+  .left-col { display: flex; flex-direction: column; gap: 1.2rem; }
+
+  .lobby-header {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 1rem;
+  }
+  .lobby-title {
+    font-family: var(--font-head); font-size: 1.1rem; font-weight: 900;
+    letter-spacing: .05em;
+  }
+  .lobby-title span { color: var(--cyan); }
+
+  /* Create room panel */
+  .create-panel {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1.2rem;
+  }
+  .create-panel h3 {
+    font-family: var(--font-head); font-size: .8rem; font-weight: 700;
+    letter-spacing: .1em; color: var(--muted); text-transform: uppercase;
+    margin-bottom: 1rem;
+  }
+  .create-row {
+    display: flex; gap: .7rem; align-items: flex-end; flex-wrap: wrap;
+  }
+  .create-row .form-group { flex: 1; min-width: 160px; }
+  .create-row .form-group:last-of-type { max-width: 110px; }
+
+  /* Room list */
+  .rooms-section h3 {
+    font-family: var(--font-head); font-size: .8rem; font-weight: 700;
+    letter-spacing: .1em; color: var(--muted); text-transform: uppercase;
+    margin-bottom: .9rem;
+  }
+  .rooms-grid { display: flex; flex-direction: column; gap: .75rem; }
+  .room-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1rem 1.2rem;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 1rem; transition: border-color .2s;
+  }
+  .room-card:hover { border-color: var(--cyan-dim); }
+  .room-info { flex: 1; }
+  .room-name {
+    font-family: var(--font-head); font-size: .9rem; font-weight: 700;
+    margin-bottom: .25rem;
+  }
+  .room-meta { font-size: .78rem; color: var(--muted); display: flex; gap: .8rem; align-items: center; flex-wrap: wrap; }
+  .room-players-bar {
+    display: flex; gap: 4px; align-items: center;
+  }
+  .player-pip {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--border); transition: background .3s;
+  }
+  .player-pip.filled { background: var(--cyan); box-shadow: 0 0 5px var(--cyan); }
+
+  .empty-state {
+    text-align: center; padding: 3rem 2rem;
+    color: var(--muted); font-size: .9rem;
+    background: var(--card); border: 1px dashed var(--border); border-radius: 12px;
+  }
+  .empty-state .icon { font-size: 2.5rem; display: block; margin-bottom: 1rem; opacity: .5; }
+
+  /* Online users */
+  .online-panel {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1rem 1.2rem;
+  }
+  .online-panel h3 {
+    font-family: var(--font-head); font-size: .75rem; font-weight: 700;
+    letter-spacing: .1em; color: var(--muted); text-transform: uppercase;
+    margin-bottom: .8rem;
+  }
+  .online-list { display: flex; flex-wrap: wrap; gap: .5rem; }
+  .online-chip {
+    padding: .25rem .7rem; border-radius: 99px;
+    font-size: .78rem; font-weight: 600;
+    background: rgba(34,211,238,.1); color: var(--cyan);
+    border: 1px solid var(--cyan-dim);
+  }
+  .online-chip.self { background: rgba(245,158,11,.1); color: var(--amber); border-color: rgba(245,158,11,.3); }
+
+  /* Chat col */
+  .chat-col {
+    display: flex; flex-direction: column;
+    position: sticky; top: 76px;
+    height: calc(100vh - 90px);
+  }
+  .chat-col .chat-box { flex: 1; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="lobby-layout">
+  <!-- LEFT: Rooms + Create -->
+  <div class="left-col">
+    <div class="lobby-header">
+      <div>
+        <div class="lobby-title">Lobby <span>/ Salas</span></div>
+        <div class="text-xs text-muted" style="margin-top:.2rem">Crie ou entre em uma sala para jogar</div>
+      </div>
+    </div>
+
+    <!-- Create room -->
+    <div class="create-panel">
+      <h3>+ Nova sala</h3>
+      <div class="create-row">
+        <div class="form-group">
+          <label class="form-label">Nome da sala</label>
+          <input type="text" id="room-name" class="form-input"
+                 placeholder="Ex: Sala dos Campeões" maxlength="40">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Jogo</label>
+          <select id="room-game" class="form-input">
+            <option value="numrush">🔢 NUMRUSH</option>
+            <option value="battlezone">🔫 BATTLEZONE</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Máx. jogadores</label>
+          <select id="room-max" class="form-input">
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4" selected>4</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" onclick="createRoom()">Criar →</button>
+      </div>
+    </div>
+
+    <!-- Online users -->
+    <div class="online-panel">
+      <h3>Online agora <span id="online-count" class="text-cyan">0</span></h3>
+      <div class="online-list" id="online-list">
+        <span class="text-muted text-xs">Conectando...</span>
+      </div>
+    </div>
+
+    <!-- Room list -->
+    <div class="rooms-section">
+      <h3>Salas abertas</h3>
+      <div class="rooms-grid" id="rooms-grid">
+        <div class="empty-state">
+          <span class="icon">🎮</span>
+          Nenhuma sala aberta. Crie a sua!
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Global chat -->
+  <div class="chat-col">
+    <div class="chat-box">
+      <div class="chat-header">
+        <div class="chat-dot"></div>
+        Chat Global
+      </div>
+      <div class="chat-messages" id="global-msgs"></div>
+      <div class="chat-footer">
+        <input type="text" id="global-input" placeholder="Mensagem global..." maxlength="200">
+        <button class="chat-send-btn" onclick="sendGlobal()">↑</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Join modal -->
+<div id="join-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:500; align-items:center; justify-content:center;">
+  <div class="card" style="max-width:380px;width:90%;padding:2rem;">
+    <h3 class="font-head" style="font-size:1rem;margin-bottom:1rem;">Entrar na sala</h3>
+    <p id="join-room-name" style="color:var(--muted);margin-bottom:1.5rem;font-size:.9rem;"></p>
+    <div class="flex gap-1">
+      <button class="btn btn-primary flex-1" onclick="confirmJoin()">Entrar →</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+  const ME = "{{ username }}";
+  const socket = io();
+  let pendingRoomId = null;
+
+  // ── Registra handlers ANTES do connect disparar ────────────────────────────
+  if (typeof attachPresenceHandlers === 'function') attachPresenceHandlers(socket);
+  if (typeof attachCryptoHandlers   === 'function') attachCryptoHandlers(socket);
+  if (typeof dmAttachSocket         === 'function') dmAttachSocket(socket);
+
+  socket.on('connect', () => {
+    setConnected();
+    socket.emit('get_lobby');
+  });
+
+  // ── Lobby updates ──────────────────────────────────────────────────────────
+  socket.on('lobby_update', ({rooms, online}) => {
+    renderRooms(rooms);
+    renderOnline(online);
+  });
+
+  function renderRooms(rooms) {
+    const grid = document.getElementById('rooms-grid');
+    if (!rooms.length) {
+      grid.innerHTML = `<div class="empty-state"><span class="icon">🎮</span>Nenhuma sala aberta. Crie a sua!</div>`;
+      return;
+    }
+    grid.innerHTML = rooms.map(r => {
+      const pips = Array.from({length: r.max}, (_, i) =>
+        `<div class="player-pip${i < r.players.length ? ' filled' : ''}"></div>`
+      ).join('');
+      const stateLabel = r.state === 'waiting' ? `<span class="badge badge-green">Aguardando</span>`
+                       : r.state === 'playing'  ? `<span class="badge badge-amber">Em jogo</span>`
+                                                 : `<span class="badge badge-red">Finalizado</span>`;
+      const gameLabel = r.game_type === 'battlezone'
+        ? `<span class="badge badge-red">🔫 BATTLEZONE</span>`
+        : `<span class="badge badge-cyan">🔢 NUMRUSH</span>`;
+      const canJoin = r.state === 'waiting' && r.players.length < r.max;
+      const joinUrl = r.game_type === 'battlezone' ? `/battlezone/${r.id}` : `/game/${r.id}`;
+      return `
+        <div class="room-card">
+          <div class="room-info">
+            <div class="room-name">${escHtml(r.name)}</div>
+            <div class="room-meta">
+              <span>Host: <b>${escHtml(r.host)}</b></span>
+              <div class="room-players-bar">${pips}</div>
+              <span>${r.players.length}/${r.max}</span>
+              ${gameLabel}
+              ${stateLabel}
+            </div>
+          </div>
+          ${canJoin
+            ? `<button class="btn btn-outline btn-sm" onclick="askJoin('${r.id}','${escHtml(r.name)}','${r.game_type}')">Entrar</button>`
+            : `<button class="btn btn-ghost btn-sm" disabled>Cheio / Em jogo</button>`
+          }
+        </div>`;
+    }).join('');
+  }
+
+  function renderOnline(online) {
+    document.getElementById('online-count').textContent = online.length;
+    document.getElementById('online-list').innerHTML = online.length
+      ? online.map(u => {
+          if (u === ME) return `<span class="online-chip self">${escHtml(u)}</span>`;
+          return `<span class="online-chip" style="cursor:pointer" title="Enviar DM para ${escHtml(u)}"
+                    onclick="openDmFromLobby('${escHtml(u)}')">${escHtml(u)} 💬</span>`;
+        }).join('')
+      : '<span class="text-muted text-xs">Ninguém online</span>';
+  }
+
+  function openDmFromLobby(partner) {
+    // Garante que o painel abre antes de navegar para a conversa
+    if (typeof dmTogglePanel === 'function' && !document.getElementById('dm-panel').classList.contains('open')) {
+      dmTogglePanel();
+    }
+    if (typeof dmOpenConvo === 'function') dmOpenConvo(partner);
+  }
+
+  // ── Create room ────────────────────────────────────────────────────────────
+  function createRoom() {
+    const name     = document.getElementById('room-name').value.trim() || `Sala de ${ME}`;
+    const max      = parseInt(document.getElementById('room-max').value);
+    const gameType = document.getElementById('room-game').value;
+    socket.emit('create_room', {name, max, game_type: gameType});
+  }
+
+  socket.on('room_created', ({room_id, game_type}) => {
+    window.location.href = game_type === 'battlezone' ? `/battlezone/${room_id}` : `/game/${room_id}`;
+  });
+
+  // ── Join room ──────────────────────────────────────────────────────────────
+  let pendingGameType = null;
+  function askJoin(id, name, gameType) {
+    pendingRoomId  = id;
+    pendingGameType = gameType;
+    document.getElementById('join-room-name').textContent = `Sala: "${name}"`;
+    const m = document.getElementById('join-modal');
+    m.style.display = 'flex';
+  }
+  function closeModal() {
+    document.getElementById('join-modal').style.display = 'none';
+    pendingRoomId   = null;
+    pendingGameType = null;
+  }
+  function confirmJoin() {
+    if (!pendingRoomId) return;
+    socket.emit('join_game_room', {room_id: pendingRoomId});
+  }
+  socket.on('join_ok', ({room_id, game_type}) => {
+    window.location.href = game_type === 'battlezone' ? `/battlezone/${room_id}` : `/game/${room_id}`;
+  });
+
+  socket.on('err', ({msg}) => { toast(msg, 'error'); });
+
+  // ── Global chat ─────────────────────────────────────────────────────────────
+  const globalMsgs = document.getElementById('global-msgs');
+
+  socket.on('global_history', (msgs) => {
+    globalMsgs.innerHTML = '';
+    msgs.forEach(m => appendGlobal(m));
+  });
+
+  socket.on('global_message', (msg) => {
+    appendGlobal(msg);
+  });
+
+  function appendGlobal(msg) {
+    globalMsgs.appendChild(formatMsg(msg, ME));
+    scrollToBottom(globalMsgs);
+  }
+
+  function sendGlobal() {
+    const input = document.getElementById('global-input');
+    const msg = input.value.trim();
+    if (!msg) return;
+    secureEmit(socket, 'global_chat', {msg});   // cifrado se chave disponível
+    input.value = '';
+  }
+
+  document.getElementById('global-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') sendGlobal();
+  });
+
+  // Close modal on backdrop click
+  document.getElementById('join-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
+</script>
+{% endblock %}

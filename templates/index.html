@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+{% block title %}NUMRUSH — O Jogo de Adivinhação Mais Rápido{% endblock %}
+
+{% block extra_head %}
+<style>
+  .hero {
+    position: relative; min-height: calc(100vh - 60px);
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  #rain-canvas {
+    position: absolute; inset: 0;
+    opacity: .4; pointer-events: none;
+  }
+  .hero-content {
+    position: relative; z-index: 2;
+    text-align: center; max-width: 750px; padding: 2rem;
+  }
+  .hero-tag {
+    display: inline-block; margin-bottom: 1.5rem;
+    padding: .35rem 1rem; border-radius: 99px;
+    background: rgba(34,211,238,.1); border: 1px solid var(--cyan-dim);
+    font-size: .72rem; font-weight: 700; letter-spacing: .15em;
+    text-transform: uppercase; color: var(--cyan);
+    animation: fade-up .6s ease both;
+  }
+  .hero-title {
+    font-family: var(--font-head);
+    font-size: clamp(3.5rem, 10vw, 7rem);
+    font-weight: 900; line-height: .95;
+    letter-spacing: -.02em;
+    background: linear-gradient(135deg, #fff 20%, var(--cyan) 60%, var(--amber) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    animation: fade-up .7s .1s ease both;
+    margin-bottom: 1rem;
+  }
+  .hero-sub {
+    font-size: 1.15rem; color: var(--muted); max-width: 520px; margin: 0 auto 2.5rem;
+    animation: fade-up .7s .2s ease both; line-height: 1.7;
+  }
+  .hero-cta {
+    display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;
+    animation: fade-up .7s .3s ease both;
+  }
+  @keyframes fade-up {
+    from { opacity:0; transform:translateY(24px); }
+    to   { opacity:1; transform:none; }
+  }
+
+  .stats-row {
+    display: flex; justify-content: center; gap: 3rem; margin-top: 4rem;
+    padding-top: 3rem; border-top: 1px solid var(--border);
+    animation: fade-up .7s .4s ease both;
+  }
+  .stat { text-align: center; }
+  .stat-val {
+    font-family: var(--font-head); font-size: 2.4rem; font-weight: 900;
+    color: var(--cyan); line-height: 1;
+  }
+  .stat-label { font-size: .78rem; color: var(--muted); letter-spacing: .08em; margin-top: .3rem; text-transform: uppercase; }
+
+  /* Features section */
+  .features {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem; padding: 5rem 2rem; max-width: 1100px; margin: 0 auto;
+  }
+  .feature-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 2rem;
+    transition: border-color .3s, transform .3s;
+  }
+  .feature-card:hover { border-color: var(--cyan-dim); transform: translateY(-4px); }
+  .feature-icon {
+    font-size: 2.5rem; margin-bottom: 1rem;
+    display: block;
+  }
+  .feature-title {
+    font-family: var(--font-head); font-size: .95rem; font-weight: 700;
+    letter-spacing: .05em; margin-bottom: .6rem; color: var(--text);
+  }
+  .feature-desc { font-size: .9rem; color: var(--muted); line-height: 1.7; }
+
+  /* How to play */
+  .howto { padding: 4rem 2rem; max-width: 800px; margin: 0 auto; text-align: center; }
+  .howto-title {
+    font-family: var(--font-head); font-size: 1.6rem; font-weight: 900;
+    letter-spacing: .05em; margin-bottom: 3rem;
+    color: var(--text);
+  }
+  .steps { display: flex; flex-direction: column; gap: 1.2rem; text-align: left; }
+  .step {
+    display: flex; gap: 1.2rem; align-items: flex-start;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1.2rem 1.5rem;
+  }
+  .step-num {
+    font-family: var(--font-head); font-size: 1.4rem; font-weight: 900;
+    color: var(--cyan); min-width: 2rem; line-height: 1;
+  }
+  .step-text { font-size: .9rem; line-height: 1.6; }
+  .step-text strong { color: var(--amber); }
+
+  /* CTA bottom */
+  .cta-bottom {
+    text-align: center; padding: 5rem 2rem;
+    background: linear-gradient(180deg, transparent, rgba(34,211,238,.04));
+    border-top: 1px solid var(--border);
+  }
+  .cta-bottom h2 {
+    font-family: var(--font-head); font-size: 2rem; font-weight: 900;
+    margin-bottom: 1rem;
+  }
+  .cta-bottom p { color: var(--muted); margin-bottom: 2rem; font-size: 1rem; }
+
+  footer {
+    text-align: center; padding: 1.5rem;
+    border-top: 1px solid var(--border);
+    font-size: .78rem; color: var(--muted);
+  }
+  footer span { color: var(--cyan); }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero -->
+<section class="hero">
+  <canvas id="rain-canvas"></canvas>
+  <div class="hero-content">
+    <div class="hero-tag">⚡ Multiplayer · Tempo Real · Competitivo</div>
+    <h1 class="hero-title">NUMRUSH</h1>
+    <p class="hero-sub">
+      Quem adivinha o número secreto primeiro, vence.
+      Jogue contra amigos em tempo real, troque mensagens e prove que você é o mais rápido.
+    </p>
+    <div class="hero-cta">
+      {% if logged_in %}
+        <a href="/lobby" class="btn btn-primary btn-lg">🎮 Entrar no Lobby</a>
+      {% else %}
+        <a href="/login" class="btn btn-primary btn-lg">🚀 Jogar Agora</a>
+        <a href="#como-jogar" class="btn btn-outline btn-lg">Como funciona?</a>
+      {% endif %}
+    </div>
+    <div class="stats-row">
+      <div class="stat"><div class="stat-val">1–100</div><div class="stat-label">Faixa de números</div></div>
+      <div class="stat"><div class="stat-val">4</div><div class="stat-label">Jogadores por sala</div></div>
+      <div class="stat"><div class="stat-val">∞</div><div class="stat-label">Salas simultâneas</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- Features -->
+<section>
+  <div class="features">
+    <div class="feature-card">
+      <span class="feature-icon">⚡</span>
+      <div class="feature-title">Velocidade é tudo</div>
+      <p class="feature-desc">Quem acertar o número secreto primeiro vence a partida. Reflexo e intuição são suas melhores armas.</p>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon">💬</span>
+      <div class="feature-title">3 canais de chat</div>
+      <p class="feature-desc">Chat global com todos os jogadores, chat da sala para coordenar estratégia, e chat da partida em tempo real.</p>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon">🏆</span>
+      <div class="feature-title">Vitória por WO</div>
+      <p class="feature-desc">Se um adversário cair da partida, você vence automaticamente. Consistência também é estratégia.</p>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon">🔢</span>
+      <div class="feature-title">Dicas em tempo real</div>
+      <p class="feature-desc">O servidor responde "maior" ou "menor" a cada tentativa. Todos veem os chutes de todos — acompanhe a disputa!</p>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon">🎮</span>
+      <div class="feature-title">Crie sua sala</div>
+      <p class="feature-desc">Crie uma sala privada, chame seus amigos e defina até 4 jogadores. O host controla quando a partida começa.</p>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon">🔄</span>
+      <div class="feature-title">Revanche instantânea</div>
+      <p class="feature-desc">Acabou a partida? O host pode reiniciar em segundos para uma nova rodada com os mesmos jogadores.</p>
+    </div>
+  </div>
+</section>
+
+<!-- How to play -->
+<section class="howto" id="como-jogar">
+  <h2 class="howto-title">Como jogar</h2>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">01</div>
+      <div class="step-text">Crie sua conta ou faça login — é instantâneo, sem email necessário.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">02</div>
+      <div class="step-text">No lobby, <strong>crie uma sala</strong> ou entre em uma existente. Convide amigos pelo nome da sala.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">03</div>
+      <div class="step-text">Com pelo menos <strong>2 jogadores</strong>, o host inicia a partida. Um número entre 1 e 100 é sorteado.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">04</div>
+      <div class="step-text">Todos tentam adivinhar. O servidor diz se o número é <strong>maior ou menor</strong>. Chutes de todos ficam visíveis!</div>
+    </div>
+    <div class="step">
+      <div class="step-num">05</div>
+      <div class="step-text">Primeiro a acertar exatamente vence. Use o chat da partida para provocar (ou pedir dicas 😏).</div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA Bottom -->
+<section class="cta-bottom">
+  <h2>Pronto para <span class="text-cyan">RUSH</span>?</h2>
+  <p>Entre, crie uma sala e prove quem é o mais rápido.</p>
+  {% if logged_in %}
+    <a href="/lobby" class="btn btn-primary btn-lg">Ir para o Lobby</a>
+  {% else %}
+    <a href="/login" class="btn btn-primary btn-lg">Criar conta grátis</a>
+  {% endif %}
+</section>
+
+<footer>
+  Feito para <span>SPD – Aula 03</span> · Sistemas Paralelos e Distribuídos · ULBRA Palmas
+</footer>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Number rain canvas animation
+  const canvas = document.getElementById('rain-canvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, drops;
+
+  function resize() {
+    W = canvas.width = canvas.offsetWidth;
+    H = canvas.height = canvas.offsetHeight;
+    drops = Array.from({length: Math.floor(W/22)}, () => Math.random() * H / 16);
+  }
+
+  function draw() {
+    ctx.fillStyle = 'rgba(7,10,16,.05)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.font = '14px Space Mono, monospace';
+    drops.forEach((y, i) => {
+      const num = Math.floor(Math.random() * 100);
+      const alpha = Math.random() * .6 + .1;
+      ctx.fillStyle = `rgba(34,211,238,${alpha})`;
+      ctx.fillText(num, i * 22, y * 16);
+      if (y * 16 > H && Math.random() > .975) drops[i] = 0;
+      else drops[i]++;
+    });
+  }
+
+  resize();
+  window.addEventListener('resize', resize);
+  setInterval(draw, 60);
+
+  // Smooth scroll for anchor links
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      document.querySelector(a.getAttribute('href'))?.scrollIntoView({behavior:'smooth'});
+    });
+  });
+</script>
+{% endblock %}

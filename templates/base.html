@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}NUMRUSH{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;600&family=Space+Mono&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #070a10;
+      --surface:  #0d1117;
+      --card:     #111827;
+      --border:   #1f2937;
+      --cyan:     #22d3ee;
+      --cyan-dim: #0e7490;
+      --amber:    #f59e0b;
+      --green:    #4ade80;
+      --red:      #f87171;
+      --purple:   #a78bfa;
+      --purple-dim:#5b21b6;
+      --text:     #e2e8f0;
+      --muted:    #6b7280;
+      --font-head: 'Orbitron', monospace;
+      --font-body: 'Exo 2', sans-serif;
+      --font-mono: 'Space Mono', monospace;
+      --glow-cyan:   0 0 20px rgba(34,211,238,.35), 0 0 60px rgba(34,211,238,.15);
+      --glow-amber:  0 0 20px rgba(245,158,11,.35),  0 0 60px rgba(245,158,11,.1);
+      --glow-purple: 0 0 20px rgba(167,139,250,.35), 0 0 60px rgba(167,139,250,.1);
+    }
+
+    html { font-size: 15px; scroll-behavior: smooth; }
+    body {
+      font-family: var(--font-body);
+      background: var(--bg); color: var(--text);
+      min-height: 100vh; line-height: 1.6;
+      background-image:
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(34,211,238,.08), transparent),
+        linear-gradient(rgba(34,211,238,.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(34,211,238,.025) 1px, transparent 1px);
+      background-size: 100% 100%, 40px 40px, 40px 40px;
+    }
+
+    /* ── Nav ── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: .8rem 2rem;
+      background: rgba(7,10,16,.85); backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-logo {
+      font-family: var(--font-head); font-size: 1.3rem; font-weight: 900;
+      letter-spacing: .1em; text-decoration: none;
+      background: linear-gradient(90deg, var(--cyan), var(--amber));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .nav-links { display: flex; gap: 1rem; align-items: center; }
+    .nav-links a {
+      font-size: .85rem; font-weight: 600; letter-spacing: .05em;
+      text-decoration: none; color: var(--muted); text-transform: uppercase; transition: color .2s;
+    }
+    .nav-links a:hover { color: var(--cyan); }
+    .nav-user {
+      font-size: .8rem; color: var(--cyan); font-family: var(--font-mono);
+      padding: .3rem .8rem; border: 1px solid var(--cyan-dim); border-radius: 4px;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+      padding: .6rem 1.4rem; font-family: var(--font-head); font-size: .75rem;
+      font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+      border: none; border-radius: 6px; cursor: pointer; transition: all .2s; text-decoration: none;
+    }
+    .btn-primary { background: var(--cyan); color: #000; box-shadow: 0 0 16px rgba(34,211,238,.4); }
+    .btn-primary:hover { background: #67e8f9; box-shadow: var(--glow-cyan); transform: translateY(-1px); }
+    .btn-amber   { background: var(--amber); color: #000; box-shadow: 0 0 16px rgba(245,158,11,.4); }
+    .btn-amber:hover { background: #fbbf24; box-shadow: var(--glow-amber); transform: translateY(-1px); }
+    .btn-outline { background: transparent; color: var(--cyan); border: 1px solid var(--cyan-dim); }
+    .btn-outline:hover { border-color: var(--cyan); background: rgba(34,211,238,.08); }
+    .btn-ghost   { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-ghost:hover { color: var(--text); border-color: var(--muted); }
+    .btn-danger  { background: var(--red); color: #000; }
+    .btn-danger:hover { opacity: .85; }
+    .btn-sm { padding: .4rem .9rem; font-size: .65rem; }
+    .btn-lg { padding: .9rem 2rem; font-size: .9rem; }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* ── Cards ── */
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; }
+    .card-glow { border-color: var(--cyan-dim); box-shadow: 0 0 0 1px rgba(34,211,238,.08), inset 0 1px 0 rgba(34,211,238,.05); }
+
+    /* ── Forms ── */
+    .form-group { display: flex; flex-direction: column; gap: .4rem; }
+    .form-label { font-size: .75rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+    .form-input {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+      padding: .65rem 1rem; color: var(--text); font-family: var(--font-body); font-size: .95rem;
+      outline: none; transition: border-color .2s; width: 100%;
+    }
+    .form-input:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(34,211,238,.1); }
+    .form-input::placeholder { color: var(--muted); }
+
+    /* ── Chat shared ── */
+    .chat-box {
+      display: flex; flex-direction: column;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+      overflow: hidden; height: 100%;
+    }
+    .chat-header {
+      padding: .6rem 1rem; border-bottom: 1px solid var(--border);
+      font-size: .72rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+      color: var(--muted); display: flex; align-items: center; gap: .4rem;
+    }
+    .chat-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 6px var(--cyan); animation: pulse-dot 2s infinite; }
+    @keyframes pulse-dot { 0%,100%{opacity:1}50%{opacity:.3} }
+    .chat-messages {
+      flex: 1; overflow-y: auto; padding: .8rem;
+      display: flex; flex-direction: column; gap: .5rem;
+      scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+    }
+    .chat-msg { font-size: .83rem; line-height: 1.5; }
+    .chat-msg .author { font-weight: 700; color: var(--cyan); margin-right: .3rem; }
+    .chat-msg .author.self { color: var(--amber); }
+    .chat-msg .time { font-size: .7rem; color: var(--muted); margin-left: .3rem; }
+    .chat-msg.system { color: var(--muted); font-style: italic; font-size: .8rem; }
+    .chat-footer { display: flex; gap: .5rem; padding: .6rem; border-top: 1px solid var(--border); }
+    .chat-footer input {
+      flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+      padding: .5rem .8rem; color: var(--text); font-family: var(--font-body); font-size: .85rem; outline: none;
+    }
+    .chat-footer input:focus { border-color: var(--cyan); }
+    .chat-send-btn {
+      background: var(--cyan-dim); color: var(--cyan); border: none; border-radius: 6px;
+      padding: .5rem .8rem; cursor: pointer; font-weight: 700; font-size: .8rem; transition: background .2s;
+    }
+    .chat-send-btn:hover { background: var(--cyan); color: #000; }
+
+    /* ── Tabs ── */
+    .tab-bar { display: flex; gap: 0; border-bottom: 1px solid var(--border); }
+    .tab {
+      padding: .55rem 1.1rem; font-size: .72rem; font-weight: 700; letter-spacing: .08em;
+      text-transform: uppercase; cursor: pointer; color: var(--muted);
+      border-bottom: 2px solid transparent; transition: all .2s; background: none; border: none;
+      border-bottom: 2px solid transparent;
+    }
+    .tab.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+    .tab:hover:not(.active) { color: var(--text); }
+
+    /* ── Badge ── */
+    .badge {
+      display: inline-block; padding: .15rem .55rem; border-radius: 999px;
+      font-size: .68rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    }
+    .badge-cyan   { background: rgba(34,211,238,.15);  color: var(--cyan); }
+    .badge-amber  { background: rgba(245,158,11,.15);  color: var(--amber); }
+    .badge-green  { background: rgba(74,222,128,.15);  color: var(--green); }
+    .badge-red    { background: rgba(248,113,113,.15); color: var(--red); }
+    .badge-purple { background: rgba(167,139,250,.15); color: var(--purple); }
+
+    /* ── Alerts ── */
+    .alert { padding: .7rem 1rem; border-radius: 8px; font-size: .85rem; border-left: 3px solid; }
+    .alert-error   { background: rgba(248,113,113,.1); border-color: var(--red);  color: var(--red); }
+    .alert-success { background: rgba(74,222,128,.1);  border-color: var(--green); color: var(--green); }
+    .alert-info    { background: rgba(34,211,238,.1);  border-color: var(--cyan);  color: var(--cyan); }
+
+    /* ── Utils ── */
+    .text-cyan { color: var(--cyan); } .text-amber { color: var(--amber); }
+    .text-green { color: var(--green); } .text-red { color: var(--red); } .text-muted { color: var(--muted); }
+    .font-head { font-family: var(--font-head); } .font-mono { font-family: var(--font-mono); }
+    .flex { display: flex; } .items-center { align-items: center; } .justify-between { justify-content: space-between; }
+    .gap-1 { gap: .5rem; } .gap-2 { gap: 1rem; } .flex-1 { flex: 1; }
+    .text-sm { font-size: .85rem; } .text-xs { font-size: .75rem; }
+
+    /* ── Toast ── */
+    #toast-container {
+      position: fixed; bottom: 1.5rem; right: 1.5rem;
+      display: flex; flex-direction: column; gap: .5rem; z-index: 9999;
+    }
+    .toast {
+      padding: .7rem 1.2rem; border-radius: 8px; font-size: .83rem; font-weight: 600;
+      background: var(--card); border: 1px solid var(--border); box-shadow: 0 4px 20px rgba(0,0,0,.5);
+      animation: toast-in .3s ease; max-width: 300px; cursor: pointer;
+    }
+    @keyframes toast-in { from{transform:translateX(120%);opacity:0} to{transform:none;opacity:1} }
+    .toast.info   { border-left: 3px solid var(--cyan); }
+    .toast.error  { border-left: 3px solid var(--red); }
+    .toast.win    { border-left: 3px solid var(--green); }
+    .toast.dm     { border-left: 3px solid var(--purple); }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+    /* ════════════════════════════════════════════════
+       DM WIDGET — Chat Privado (disponível em todas as páginas)
+       ════════════════════════════════════════════════ */
+    #dm-fab {
+      position: fixed; bottom: 1.8rem; right: 1.8rem; z-index: 8000;
+      width: 56px; height: 56px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--purple-dim), var(--purple));
+      border: none; cursor: pointer; font-size: 1.4rem;
+      box-shadow: 0 4px 24px rgba(167,139,250,.45), var(--glow-purple);
+      transition: transform .2s, box-shadow .2s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    #dm-fab:hover { transform: scale(1.1); box-shadow: 0 6px 32px rgba(167,139,250,.6); }
+    #dm-unread-badge {
+      position: absolute; top: -4px; right: -4px;
+      background: var(--red); color: #fff; border-radius: 99px;
+      font-size: .6rem; font-weight: 700; padding: .15rem .4rem;
+      min-width: 18px; text-align: center;
+      border: 2px solid var(--bg);
+      display: none;
+    }
+
+    #dm-panel {
+      position: fixed; bottom: 5.5rem; right: 1.8rem; z-index: 7999;
+      width: 360px; height: 520px;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 16px; overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,.6), 0 0 0 1px rgba(167,139,250,.1);
+      display: none; flex-direction: column;
+      animation: dm-slide-in .25s ease;
+    }
+    @keyframes dm-slide-in {
+      from { opacity: 0; transform: translateY(20px) scale(.97); }
+      to   { opacity: 1; transform: none; }
+    }
+    #dm-panel.open { display: flex; }
+
+    /* Panel header */
+    .dm-header {
+      display: flex; align-items: center; gap: .6rem;
+      padding: .9rem 1rem; border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .dm-header-title {
+      flex: 1; font-family: var(--font-head); font-size: .8rem;
+      font-weight: 700; letter-spacing: .08em;
+    }
+    .dm-header-title span { color: var(--purple); }
+    .dm-back-btn {
+      background: none; border: none; cursor: pointer; color: var(--muted);
+      font-size: 1.1rem; padding: .2rem; transition: color .2s; display: none;
+    }
+    .dm-back-btn:hover { color: var(--purple); }
+    .dm-close-btn {
+      background: none; border: none; cursor: pointer; color: var(--muted);
+      font-size: 1rem; padding: .2rem; transition: color .2s;
+    }
+    .dm-close-btn:hover { color: var(--text); }
+
+    /* Search bar */
+    #dm-search-bar {
+      padding: .6rem .8rem; border-bottom: 1px solid var(--border);
+      display: flex; gap: .5rem; align-items: center;
+    }
+    #dm-search-input {
+      flex: 1; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 6px; padding: .4rem .7rem; color: var(--text);
+      font-family: var(--font-body); font-size: .82rem; outline: none;
+    }
+    #dm-search-input:focus { border-color: var(--purple); }
+    #dm-search-input::placeholder { color: var(--muted); }
+    .dm-search-go {
+      background: var(--purple-dim); color: var(--purple); border: none;
+      border-radius: 6px; padding: .4rem .7rem; cursor: pointer;
+      font-size: .75rem; font-weight: 700; transition: background .2s;
+    }
+    .dm-search-go:hover { background: var(--purple); color: #fff; }
+
+    /* View: Inbox */
+    #dm-view-inbox { flex: 1; overflow-y: auto; }
+    .dm-convo-item {
+      display: flex; align-items: center; gap: .75rem;
+      padding: .75rem 1rem; cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      transition: background .15s;
+    }
+    .dm-convo-item:hover { background: rgba(167,139,250,.06); }
+    .dm-avatar {
+      width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
+      background: linear-gradient(135deg, var(--purple-dim), var(--purple));
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-head); font-size: .9rem; font-weight: 700; color: #fff;
+      position: relative;
+    }
+    .dm-avatar .online-dot {
+      position: absolute; bottom: 1px; right: 1px;
+      width: 9px; height: 9px; border-radius: 50%;
+      background: var(--green); border: 2px solid var(--card);
+    }
+    .dm-convo-info { flex: 1; min-width: 0; }
+    .dm-convo-name { font-weight: 700; font-size: .88rem; color: var(--text); }
+    .dm-convo-preview {
+      font-size: .78rem; color: var(--muted);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .dm-convo-meta { display: flex; flex-direction: column; align-items: flex-end; gap: .2rem; flex-shrink: 0; }
+    .dm-convo-time { font-size: .7rem; color: var(--muted); }
+    .dm-unread-pip {
+      background: var(--purple); color: #fff;
+      border-radius: 99px; font-size: .65rem; font-weight: 700;
+      padding: .1rem .42rem; min-width: 18px; text-align: center;
+    }
+    .dm-empty {
+      text-align: center; padding: 3rem 1.5rem; color: var(--muted);
+    }
+    .dm-empty .icon { font-size: 2.5rem; display: block; margin-bottom: .8rem; opacity: .4; }
+    .dm-empty p { font-size: .85rem; line-height: 1.6; }
+
+    /* View: Conversation */
+    #dm-view-convo { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+    .dm-convo-header {
+      display: flex; align-items: center; gap: .7rem;
+      padding: .6rem .9rem; border-bottom: 1px solid var(--border);
+      background: rgba(167,139,250,.05);
+    }
+    .dm-partner-name { font-weight: 700; font-size: .9rem; flex: 1; }
+    .dm-online-label { font-size: .72rem; color: var(--green); }
+    .dm-offline-label { font-size: .72rem; color: var(--muted); }
+    .dm-secure-badge {
+      font-size: .65rem; padding: .15rem .5rem; border-radius: 99px;
+      background: rgba(167,139,250,.15); color: var(--purple); border: 1px solid var(--purple-dim);
+      font-weight: 700; letter-spacing: .04em;
+    }
+
+    #dm-messages {
+      flex: 1; overflow-y: auto; padding: .8rem;
+      display: flex; flex-direction: column; gap: .5rem;
+      scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+    }
+
+    /* Mensagens em balões */
+    .dm-bubble-wrap {
+      display: flex; flex-direction: column;
+      gap: .1rem;
+    }
+    .dm-bubble-wrap.sent  { align-items: flex-end; }
+    .dm-bubble-wrap.recv  { align-items: flex-start; }
+    .dm-bubble {
+      max-width: 78%; padding: .5rem .85rem;
+      border-radius: 14px; font-size: .85rem; line-height: 1.5;
+      word-break: break-word;
+    }
+    .dm-bubble-wrap.sent .dm-bubble {
+      background: linear-gradient(135deg, var(--purple-dim), rgba(91,33,182,.8));
+      color: #f0e6ff; border-bottom-right-radius: 4px;
+    }
+    .dm-bubble-wrap.recv .dm-bubble {
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--text); border-bottom-left-radius: 4px;
+    }
+    .dm-bubble-meta { font-size: .66rem; color: var(--muted); margin: .1rem .2rem; }
+
+    #dm-input-bar {
+      display: flex; gap: .5rem; padding: .7rem .8rem;
+      border-top: 1px solid var(--border); background: var(--surface);
+    }
+    #dm-msg-input {
+      flex: 1; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; padding: .5rem .8rem; color: var(--text);
+      font-family: var(--font-body); font-size: .85rem; outline: none; resize: none;
+    }
+    #dm-msg-input:focus { border-color: var(--purple); box-shadow: 0 0 0 3px rgba(167,139,250,.1); }
+    .dm-send-btn {
+      background: var(--purple-dim); color: var(--purple);
+      border: none; border-radius: 8px; padding: .5rem .9rem;
+      cursor: pointer; font-weight: 700; font-size: .9rem; transition: background .2s;
+      align-self: flex-end;
+    }
+    .dm-send-btn:hover { background: var(--purple); color: #fff; }
+
+    /* Ajuste toast para não sobrepor o FAB */
+    #toast-container { bottom: 5.5rem !important; }
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  <nav>
+    <a href="/" class="nav-logo">NUM<span style="color:var(--amber)">RUSH</span></a>
+    <div class="nav-links">
+      {% if session.get('username') %}
+        <a href="/lobby">Lobby</a>
+        <!-- Indicador online global -->
+        <span id="nav-online-pill" title="Jogadores online agora"
+              style="display:inline-flex;align-items:center;gap:.35rem;font-size:.75rem;
+                     padding:.25rem .65rem;border-radius:99px;border:1px solid var(--border);
+                     color:var(--muted);font-family:var(--font-mono);cursor:default;transition:all .4s">
+          <span id="nav-online-dot" style="width:7px;height:7px;border-radius:50%;
+                background:var(--muted);display:inline-block;transition:background .4s"></span>
+          <span id="nav-online-count">—</span> online
+        </span>
+        <span class="nav-user">{{ session.username }}</span>
+        <span id="enc-indicator" title="Status da criptografia de sessão"
+              style="font-size:.75rem;padding:.25rem .6rem;border-radius:4px;
+                     border:1px solid #374151;color:#6b7280;font-family:var(--font-mono);
+                     cursor:default;transition:all .4s">🔓 sem cifra</span>
+        <!-- Indicador de conexão do socket -->
+        <span id="conn-indicator" title="Status da conexão"
+              style="font-size:.7rem;padding:.25rem .55rem;border-radius:4px;
+                     border:1px solid var(--border);color:var(--muted);font-family:var(--font-mono);
+                     cursor:default;transition:all .4s">⬤ conectando</span>
+        <a href="/logout" class="btn btn-ghost btn-sm">Sair</a>
+      {% else %}
+        <a href="/login" class="btn btn-primary btn-sm">Entrar</a>
+      {% endif %}
+    </div>
+  </nav>
+
+  {% block content %}{% endblock %}
+
+  <div id="toast-container"></div>
+
+  <!-- ════════════════════════════════════════════
+       DM WIDGET (apenas para usuários logados)
+       ════════════════════════════════════════════ -->
+  {% if session.get('username') %}
+  <!-- FAB -->
+  <button id="dm-fab" onclick="dmTogglePanel()" title="Chat Privado">
+    💬
+    <span id="dm-unread-badge"></span>
+  </button>
+
+  <!-- Panel -->
+  <div id="dm-panel">
+    <!-- Header -->
+    <div class="dm-header">
+      <button class="dm-back-btn" id="dm-back-btn" onclick="dmShowInbox()" title="Voltar">←</button>
+      <div class="dm-header-title">Chat <span>Privado</span></div>
+      <button class="dm-close-btn" onclick="dmTogglePanel()" title="Fechar">✕</button>
+    </div>
+
+    <!-- Search / New DM -->
+    <div id="dm-search-bar">
+      <input type="text" id="dm-search-input" placeholder="Iniciar conversa com... (username)" maxlength="30">
+      <button class="dm-search-go" onclick="dmOpenWith()">→</button>
+    </div>
+
+    <!-- View: Inbox -->
+    <div id="dm-view-inbox"></div>
+
+    <!-- View: Conversation -->
+    <div id="dm-view-convo">
+  <div class="dm-convo-header">
+    <div class="dm-avatar" id="dm-partner-avatar">U</div>
+    <div class="dm-partner-name" id="dm-partner-name">User</div>
+    <div id="dm-partner-status" class="dm-offline-label">offline</div>
+    <div class="dm-secure-badge">🔒</div>
+  </div>
+
+  <div id="dm-messages"></div>
+
+  <div id="dm-input-bar">
+    <textarea id="dm-msg-input" rows="1" placeholder="Mensagem..."></textarea>
+    <button class="dm-send-btn" onclick="dmSend()">↑</button>
+  </div>
+</div>
+  </div>
+  {% endif %}
+
+  <script>
+    /* ── Shared utils ─────────────────────────────────────────────────── */
+    function toast(msg, type = 'info', duration = 4000, onClick) {
+      const c = document.getElementById('toast-container');
+      const t = document.createElement('div');
+      t.className = `toast ${type}`;
+      t.textContent = msg;
+      if (onClick) t.addEventListener('click', () => { onClick(); t.remove(); });
+      c.appendChild(t);
+      setTimeout(() => { t.style.opacity='0'; t.style.transform='translateX(120%)'; t.style.transition='.3s'; setTimeout(()=>t.remove(),300); }, duration);
+    }
+    function scrollToBottom(el) { if (el) el.scrollTop = el.scrollHeight; }
+    function formatMsg(msg, selfUser) {
+      const div = document.createElement('div');
+      div.className = 'chat-msg';
+      const isSelf = msg.from === selfUser;
+      div.innerHTML = `<span class="author${isSelf?' self':''}">${escHtml(msg.from)}</span><span>${escHtml(msg.msg)}</span><span class="time">${msg.time||''}</span>`;
+      return div;
+    }
+    function formatSystem(text) {
+      const div = document.createElement('div');
+      div.className = 'chat-msg system';
+      div.textContent = text;
+      return div;
+    }
+    function escHtml(str) {
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    {% if session.get('username') %}
+    /* ══════════════════════════════════════════════════════════════
+       DM WIDGET — lógica
+       ══════════════════════════════════════════════════════════════ */
+    const DM_ME = "{{ session.username }}";
+    let dmSocket = null;           // socket compartilhado (injetado pela página)
+    let dmCurrentPartner = null;   // username da conversa aberta
+    let dmTotalUnread = 0;
+    let dmPanelOpen = false;
+
+    /* Exposto para as páginas injetarem o socket já conectado */
+    function dmAttachSocket(sock) {
+      dmSocket = sock;
+      dmSocket.on('dm_message',   onDmMessage);
+      dmSocket.on('dm_history',   onDmHistory);
+      dmSocket.on('dm_opened',    onDmOpened);
+      dmSocket.on('dm_inbox',     onDmInbox);
+      dmSocket.emit('get_dm_inbox');
+      // attachCryptoHandlers chamado diretamente pela página — sem duplicar aqui
+    }
+
+    /* ── Panel toggle ── */
+    function dmTogglePanel() {
+      dmPanelOpen = !dmPanelOpen;
+      const panel = document.getElementById('dm-panel');
+      panel.classList.toggle('open', dmPanelOpen);
+      if (dmPanelOpen) {
+        dmShowInbox();
+        if (dmSocket) dmSocket.emit('get_dm_inbox');
+      }
+    }
+
+    /* ── Inbox ── */
+    function dmShowInbox() {
+      document.getElementById('dm-view-inbox').style.display = '';
+      document.getElementById('dm-view-convo').style.display = 'none';
+      document.getElementById('dm-back-btn').style.display   = 'none';
+      dmCurrentPartner = null;
+    }
+
+    function onDmInbox({convos}) {
+      const box = document.getElementById('dm-view-inbox');
+      // Recalcula total unread
+      dmTotalUnread = convos.reduce((s,c) => s + (c.unread||0), 0);
+      updateUnreadBadge();
+
+      if (!convos.length) {
+        box.innerHTML = `
+          <div class="dm-empty">
+            <span class="icon">💬</span>
+            <p>Nenhuma conversa ainda.<br>Pesquise um jogador acima para começar.</p>
+          </div>`;
+        return;
+      }
+      box.innerHTML = convos.map(c => `
+        <div class="dm-convo-item" onclick="dmOpenConvo('${escHtml(c.with)}')">
+          <div class="dm-avatar">
+            ${escHtml(c.with.charAt(0).toUpperCase())}
+            ${c.online ? '<div class="online-dot"></div>' : ''}
+          </div>
+          <div class="dm-convo-info">
+            <div class="dm-convo-name">${escHtml(c.with)}</div>
+            <div class="dm-convo-preview">${escHtml(c.last_msg || 'Iniciar conversa')}</div>
+          </div>
+          <div class="dm-convo-meta">
+            <span class="dm-convo-time">${escHtml(c.last_time||'')}</span>
+            ${c.unread ? `<span class="dm-unread-pip">${c.unread}</span>` : ''}
+          </div>
+        </div>`).join('');
+    }
+
+    /* ── Open conversation ── */
+    function dmOpenConvo(partner) {
+      if (!dmSocket) { toast('Conectando… tente em instantes.', 'error'); return; }
+      dmCurrentPartner = partner;
+      // Emite open_dm → servidor retorna dm_opened com histórico
+      dmSocket.emit('open_dm', { with_user: partner });
+    }
+
+    function dmOpenWith() {
+      const input = document.getElementById('dm-search-input');
+      const partner = input.value.trim();
+      if (!partner) return;
+      if (partner === DM_ME) { toast('Você não pode conversar consigo mesmo.','error'); return; }
+      input.value = '';
+      // Abre painel PRIMEIRO (dmShowInbox roda antes), depois seta dmCurrentPartner
+      if (!dmPanelOpen) dmTogglePanel();
+      dmOpenConvo(partner);
+    }
+
+    function onDmOpened({with_user, messages, online}) {
+      showConvoView(with_user, online);
+      renderDmMessages(messages);
+    }
+
+    function onDmHistory({with_user, messages}) {
+      if (with_user !== dmCurrentPartner) return;
+      renderDmMessages(messages);
+    }
+
+    function showConvoView(partner, online) {
+      dmCurrentPartner = partner;   // garante correto mesmo em race condition
+      document.getElementById('dm-view-inbox').style.display = 'none';
+      document.getElementById('dm-view-convo').style.display = 'flex';
+      document.getElementById('dm-back-btn').style.display   = '';
+      document.getElementById('dm-partner-name').textContent = partner;
+      document.getElementById('dm-partner-avatar').textContent = partner.charAt(0).toUpperCase();
+      const status = document.getElementById('dm-partner-status');
+      status.textContent = online ? '● online' : '○ offline';
+      status.className   = online ? 'dm-online-label' : 'dm-offline-label';
+      document.getElementById('dm-msg-input').focus();
+    }
+
+    function renderDmMessages(messages) {
+      const box = document.getElementById('dm-messages');
+      box.innerHTML = '';
+      if (!messages.length) {
+        box.innerHTML = '<div class="dm-empty" style="padding:2rem 1rem"><span class="icon" style="font-size:1.8rem;margin-bottom:.5rem">🔒</span><p style="font-size:.8rem">Conversa privada. Só vocês dois veem estas mensagens.</p></div>';
+        return;
+      }
+      messages.forEach(m => box.appendChild(buildBubble(m)));
+      scrollToBottom(box);
+    }
+
+    function buildBubble(msg) {
+      const isSent = msg.from === DM_ME;
+      const wrap = document.createElement('div');
+      wrap.className = `dm-bubble-wrap ${isSent ? 'sent' : 'recv'}`;
+      wrap.innerHTML = `
+        <div class="dm-bubble">${escHtml(msg.msg)}</div>
+        <div class="dm-bubble-meta">${isSent ? '' : escHtml(msg.from) + ' · '}${msg.time||''}</div>`;
+      return wrap;
+    }
+
+    /* ── Send DM ── */
+    function dmSend() {
+      if (!dmSocket || !dmCurrentPartner) return;
+      const input = document.getElementById('dm-msg-input');
+      const msg   = input.value.trim();
+      if (!msg) return;
+      // Envia cifrado se chave disponível (Requisito SPD Aula 03)
+      secureEmit(dmSocket, 'send_dm', {to: dmCurrentPartner, msg});
+      input.value = '';
+      input.style.height = '';
+      input.focus();
+    }
+
+    /* ── Receive DM ── */
+    function onDmMessage(msg) {
+      const isMine = msg.from === DM_ME;
+      const partner = isMine ? msg.to : msg.from;
+
+      // Se a conversa está aberta, adiciona o balão
+      if (dmCurrentPartner === partner && dmPanelOpen) {
+        const box = document.getElementById('dm-messages');
+        // Remove placeholder vazio se existir
+        const empty = box.querySelector('.dm-empty');
+        if (empty) empty.remove();
+        box.appendChild(buildBubble(msg));
+        scrollToBottom(box);
+      } else if (!isMine) {
+        // Notificação toast clicável
+        dmTotalUnread++;
+        updateUnreadBadge();
+        toast(`💬 ${msg.from}: ${msg.msg.slice(0,60)}${msg.msg.length>60?'…':''}`, 'dm', 6000, () => {
+          if (!dmPanelOpen) dmTogglePanel();
+          dmOpenConvo(msg.from);
+        });
+      }
+
+      // Refresh inbox se estiver visível
+      if (dmPanelOpen && !dmCurrentPartner && dmSocket) {
+        dmSocket.emit('get_dm_inbox');
+      }
+    }
+
+    function updateUnreadBadge() {
+      const badge = document.getElementById('dm-unread-badge');
+      if (dmTotalUnread > 0) {
+        badge.style.display = '';
+        badge.textContent   = dmTotalUnread > 99 ? '99+' : dmTotalUnread;
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    /* Keyboard shortcuts */
+    document.getElementById('dm-msg-input')?.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); dmSend(); }
+    });
+    document.getElementById('dm-msg-input')?.addEventListener('input', function() {
+      this.style.height = '';
+      this.style.height = Math.min(this.scrollHeight, 80) + 'px';
+    });
+    document.getElementById('dm-search-input')?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') dmOpenWith();
+    });
+    {% endif %}
+  </script>
+
+  {% if session.get('username') %}
+  <script>
+  /* ══════════════════════════════════════════════════════════════════════
+     CRIPTOGRAFIA DE SESSÃO — SPD Aula 03
+     Algoritmo: XOR com chave repeating (simétrico/síncrono)
+     - Servidor gera uma chave única por cliente no connect
+     - Cliente recebe a chave via evento 'session_key' (handshake em claro)
+     - Todas as mensagens subsequentes são cifradas com essa chave
+     ══════════════════════════════════════════════════════════════════════ */
+
+  let SESSION_KEY = null;   // chave recebida do servidor
+
+  /** Cifra/decifra string com XOR + base64 (idêntico ao Python no servidor) */
+  function xorCipher(key, text) {
+    const keyBytes  = new TextEncoder().encode(key);
+    const textBytes = new TextEncoder().encode(text);
+    const result    = new Uint8Array(textBytes.length);
+    for (let i = 0; i < textBytes.length; i++) {
+      result[i] = textBytes[i] ^ keyBytes[i % keyBytes.length];
+    }
+    // Converte para base64
+    return btoa(String.fromCharCode(...result));
+  }
+
+  function xorDecrypt(key, b64) {
+    const keyBytes = new TextEncoder().encode(key);
+    const raw      = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+    const result   = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) {
+      result[i] = raw[i] ^ keyBytes[i % keyBytes.length];
+    }
+    return new TextDecoder().decode(result);
+  }
+
+  /**
+   * secureEmit — envia evento com campo 'msg' cifrado se a chave estiver disponível.
+   * Uso: secureEmit(socket, 'global_chat', {msg: 'olá'})
+   *      → emite {msg: '<base64 cifrado>', encrypted: true}
+   */
+  function secureEmit(sock, event, data) {
+    if (SESSION_KEY && data.msg !== undefined) {
+      data = { ...data, msg: xorCipher(SESSION_KEY, String(data.msg)), encrypted: true };
+    }
+    sock.emit(event, data);
+  }
+
+  /** Chamado quando o servidor entrega a chave de sessão */
+  function onSessionKey({key, algorithm, msg: serverMsg}) {
+    SESSION_KEY = key;
+    console.log(`[NUMRUSH] 🔐 Chave de sessão recebida (${algorithm}): ${key.slice(0,8)}…`);
+
+    // Atualiza indicador visual na nav
+    const ind = document.getElementById('enc-indicator');
+    if (ind) {
+      ind.textContent = '🔐 cifrado';
+      ind.style.borderColor = 'var(--green)';
+      ind.style.color       = 'var(--green)';
+      ind.title = `Algoritmo: ${algorithm} | Chave: ${key.slice(0,8)}… (${key.length} chars)`;
+    }
+
+    // Notifica o widget de DM para marcar como cifrado
+    const dmBadge = document.getElementById('dm-fab');
+    if (dmBadge) dmBadge.title = 'Chat Privado (🔐 cifrado)';
+  }
+
+  // Registra handler quando o socket for criado pela página
+  // (chamado por dmAttachSocket ou manualmente)
+  function attachCryptoHandlers(sock) {
+    sock.on('session_key', onSessionKey);
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     PRESENÇA EM TEMPO REAL — atualiza navbar e DM widget em qualquer página
+
+     IMPORTANTE: chamar ANTES do socket conectar (fora do on('connect')).
+     O on('connect') da página deve chamar setConnected() manualmente.
+     ══════════════════════════════════════════════════════════════════════ */
+
+  function setConnected() {
+    const ind = document.getElementById('conn-indicator');
+    if (ind) {
+      ind.textContent      = '⬤ online';
+      ind.style.color      = 'var(--green)';
+      ind.style.borderColor = 'var(--green)';
+    }
+  }
+
+  function attachPresenceHandlers(sock) {
+    // Desconexão / reconectando
+    sock.on('disconnect', () => {
+      const ind = document.getElementById('conn-indicator');
+      if (ind) {
+        ind.textContent      = '⬤ reconectando…';
+        ind.style.color      = 'var(--amber)';
+        ind.style.borderColor = 'var(--amber)';
+      }
+      const dot = document.getElementById('nav-online-dot');
+      if (dot) { dot.style.background = 'var(--muted)'; dot.style.boxShadow = 'none'; }
+    });
+
+    // Reconexão após queda
+    sock.on('connect', () => setConnected());
+
+    // Lista de online atualizada — chega no connect e a cada entrada/saída
+    sock.on('online_update', ({online}) => {
+      const count   = online.length;
+      const countEl = document.getElementById('nav-online-count');
+      const dot     = document.getElementById('nav-online-dot');
+      const pill    = document.getElementById('nav-online-pill');
+
+      if (countEl) countEl.textContent = count;
+      if (dot) {
+        dot.style.background = count > 1 ? 'var(--green)' : 'var(--cyan)';
+        dot.style.boxShadow  = count > 1 ? '0 0 6px var(--green)' : '0 0 6px var(--cyan)';
+      }
+      if (pill) pill.title = `${count} jogador${count !== 1 ? 'es' : ''} online agora`;
+
+      // Atualiza status do parceiro de DM se conversa estiver aberta
+      if (dmCurrentPartner) {
+        const partnerOnline = online.some(u => u.username === dmCurrentPartner);
+        const statusEl = document.getElementById('dm-partner-status');
+        if (statusEl) {
+          statusEl.textContent = partnerOnline ? '● online' : '○ offline';
+          statusEl.className   = partnerOnline ? 'dm-online-label' : 'dm-offline-label';
+        }
+      }
+
+      // Atualiza inbox se estiver aberto na view de lista
+      if (dmPanelOpen && !dmCurrentPartner && dmSocket) {
+        dmSocket.emit('get_dm_inbox');
+      }
+    });
+  }
+  </script>
+  {% endif %}
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>
