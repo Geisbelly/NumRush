@@ -1,15 +1,39 @@
 # NUMRUSH 🎮
 **Jogo multiplayer de adivinhar o número — SPD Aula 03**
 
+Projeto desenvolvido para a disciplina de **Sistemas Paralelos e Distribuídos (SPD)** da ULBRA Palmas.
+Implementa comunicação em rede via sockets TCP, criptografia simétrica de sessão e um jogo multiplayer em tempo real.
+
 ---
 
-## Instalação
+## Estrutura do projeto
+
+```
+numrush/
+├── server.py           ← Servidor TCP puro (terminal) — requisito principal da atividade
+├── client.py           ← Cliente TCP puro (terminal) — requisito principal da atividade
+├── app.py              ← Flask + SocketIO (versão web completa)
+├── requirements.txt    ← Dependências Python
+├── Dockerfile          ← Imagem Docker da versão web
+├── docker-compose.yml  ← Orquestração do container
+├── .gitignore
+├── README.md
+└── templates/
+    ├── base.html       ← Layout base, CSS, DM widget, presença em tempo real
+    ├── index.html      ← Landing page
+    ├── login.html      ← Login / Cadastro
+    ├── lobby.html      ← Lobby + salas + chat global
+    ├── game.html       ← Arena NUMRUSH + 3 chats
+    └── battlezone.html ← Arena BATTLEZONE
+```
+
+---
+
+## Instalação (sem Docker)
 
 ```bash
 pip install -r requirements.txt
 ```
-
-Isso instala todas as dependências de ambos os modos de execução de uma vez.
 
 ---
 
@@ -19,7 +43,7 @@ O projeto pode ser executado de **duas formas independentes**:
 
 ### 🖥️ Modo Terminal — TCP Puro (`server.py` + `client.py`)
 
-Implementação direta dos requisitos da atividade usando sockets TCP da biblioteca padrão do Python.
+Implementação direta dos requisitos da atividade usando sockets TCP da biblioteca padrão do Python, sem nenhuma dependência externa além da `cryptography`.
 
 ```bash
 # Terminal 1 — iniciar o servidor
@@ -49,7 +73,6 @@ Após conectar, cada cliente recebe uma chave Fernet exclusiva e pode usar os co
 Versão completa com interface visual, múltiplas salas, chat em 3 canais, DMs e dois jogos.
 
 ```bash
-# Iniciar o servidor web
 python app.py
 # Acesse: http://localhost:5000
 ```
@@ -58,86 +81,218 @@ Para testar com múltiplos jogadores, abra em janelas/abas diferentes (use nomes
 
 ---
 
+## 🐳 Modo Docker — Rodar sem instalar Python
+
+O Docker empacota o projeto junto com todas as dependências numa "caixinha" isolada chamada **container**, que roda igual em qualquer máquina (Windows, Mac, Linux ou servidor na nuvem) sem precisar instalar Python ou configurar nada manualmente.
+
+### Pré-requisito
+
+Instalar o [Docker Desktop](https://www.docker.com/products/docker-desktop/). Após instalar, abra o Docker Desktop e aguarde o ícone da baleia 🐳 aparecer na barra de tarefas antes de prosseguir.
+
+### Subir o servidor
+
+```bash
+docker compose up --build
+# Acesse: http://localhost:5000
+```
+
+Na primeira vez demora cerca de 1 minuto (baixa a imagem do Python e instala as dependências). Nas próximas execuções é muito mais rápido.
+
+### Rodar em segundo plano
+
+```bash
+docker compose up --build -d
+```
+
+### Parar o servidor
+
+```bash
+# Para e mantém o container
+Ctrl + C
+
+# Para e remove o container
+docker compose down
+```
+
+### Acessar de outros dispositivos na mesma rede
+
+Descubra seu IP local:
+
+```bash
+ipconfig   # Windows
+ifconfig   # Mac / Linux
+```
+
+Outros dispositivos na mesma rede acessam por:
+
+```
+http://SEU_IP_LOCAL:5000
+```
+
+Se não conectar, libere a porta no firewall do Windows (terminal como administrador):
+
+```bash
+netsh advfirewall firewall add rule name="NumRush" dir=in action=allow protocol=TCP localport=5000
+```
+
+### Acessar de qualquer lugar com Ngrok
+
+O Ngrok cria um túnel público temporário — gera um link acessível de qualquer dispositivo, em qualquer rede, sem precisar mexer no roteador.
+
+```bash
+# Instala o Ngrok
+winget install ngrok
+
+# Configura o token (obtido em ngrok.com após criar conta gratuita)
+ngrok config add-authtoken SEU_TOKEN
+
+# Com o Docker já rodando, em outro terminal:
+ngrok http 5000
+```
+
+O Ngrok vai exibir um link tipo `https://a1b2c3.ngrok-free.app` que qualquer pessoa consegue acessar enquanto o terminal estiver aberto.
+
+---
+
+## Como o sistema funciona
+
+### Visão geral
+
+O projeto implementa o modelo **Cliente/Servidor** sobre o protocolo **TCP**, onde:
+
+- O **servidor** fica sempre rodando, aguardando conexões
+- Os **clientes** se conectam ao servidor e se comunicam através dele
+- Toda comunicação passa pelo servidor — os clientes nunca se falam diretamente
+
+```
+Cliente A ──┐
+            ├──► Servidor ◄──► distribui para os demais
+Cliente B ──┘
+```
+
+### Como os dados trafegam pela rede
+
+Dicionários Python são convertidos para JSON, opcionalmente criptografados, e enviados com um cabeçalho de 4 bytes indicando o tamanho da mensagem — técnica chamada de **framing**, que garante que mensagens grandes ou múltiplas mensagens seguidas não se misturem:
+
+```
+[ 4 bytes: tamanho ] [ N bytes: dados JSON (criptografados) ]
+```
+
+```python
+# Envio
+raw = json.dumps({"tipo": "chat", "msg": "olá"}).encode()
+raw = fernet.encrypt(raw)                        # criptografa
+conn.sendall(struct.pack(">I", len(raw)) + raw)  # envia com tamanho prefixado
+
+# Recebimento
+tamanho = struct.unpack(">I", conn.recv(4))[0]   # lê os 4 bytes do tamanho
+raw     = conn.recv(tamanho)                     # lê exatamente N bytes
+dados   = json.loads(fernet.decrypt(raw))        # decifra e converte
+```
+
+### Handshake de criptografia
+
+Cada cliente que se conecta passa por um handshake inicial antes de trocar qualquer dado:
+
+```
+Cliente                          Servidor
+   │                                │
+   │──── { type: "hello",           │
+   │       username: "joao" } ─────►│  sem criptografia
+   │                                │
+   │◄─── { type: "key",             │
+   │       key: "ABC123..." } ──────│  sem criptografia — único envio em claro
+   │                                │
+   │══ todas as mensagens seguintes são criptografadas com a chave recebida ══
+```
+
+A partir daí, toda mensagem que sai do cliente já vai criptografada, e o servidor só consegue ler porque tem a mesma chave.
+
+### Identificação de clientes
+
+O servidor mantém um dicionário em memória com todos os clientes conectados:
+
+```python
+clients = {
+    "joao":  { "conn": <socket>, "fernet": <chave>, "addr": ("192.168.1.2", 54321) },
+    "maria": { "conn": <socket>, "fernet": <chave>, "addr": ("192.168.1.3", 54322) },
+}
+```
+
+Cada cliente é identificado pelo seu `username`, enviado no primeiro contato. O servidor usa esse mapeamento para saber para qual socket encaminhar cada mensagem.
+
+### Concorrência — múltiplos clientes simultâneos
+
+Para atender vários clientes ao mesmo tempo sem um bloquear o outro, o servidor cria uma **thread separada** para cada conexão:
+
+```python
+conn, addr = server.accept()       # aceita nova conexão
+t = threading.Thread(
+    target=handle_client,          # cada cliente roda em sua própria thread
+    args=(conn, addr),
+    daemon=True
+)
+t.start()
+```
+
+Isso significa que o servidor consegue conversar com o cliente A enquanto ao mesmo tempo processa uma mensagem do cliente B.
+
+---
+
 ## Atendimento à Atividade SPD — Aula 03
 
 ### Requisitos Obrigatórios
 
-| Requisito | Implementação |
-|-----------|---------------|
-| Servidor TCP escutando conexões | `server.py` — `socket.bind()` + `socket.listen()` na porta 9999 |
-| Cliente TCP conectando ao servidor | `client.py` — `socket.connect((HOST, PORT))` |
-| Enviar objetos Python (dicionários) pela rede | `send_msg()` serializa `dict` com `json.dumps` + framing de 4 bytes; `recv_msg()` desserializa |
-| Servidor processa dados e retorna resposta | Comando `/data` envia um `dict`, servidor transforma os valores e devolve `data_response` |
-| Servidor identifica cada cliente | `clients: dict[str, dict]` mapeado por `username`; na versão web também via `request.sid` |
-| Chave única por cliente | `generate_key()` chama `Fernet.generate_key()` a cada novo handshake |
-| Criptografia síncrona (simétrica) | **Fernet — AES-128-CBC + HMAC-SHA256** — mesma chave e função para cifrar e decifrar |
-| Cliente envia dados criptografados | Após receber a chave, todo `send_msg(conn, data, fernet_global)` usa criptografia |
+| Requisito | Arquivo | Como está implementado |
+|-----------|---------|------------------------|
+| Servidor TCP escutando conexões | `server.py` | `socket.bind((HOST, 9999))` + `socket.listen(10)` — aguarda conexões na porta 9999 |
+| Cliente TCP conectando ao servidor | `client.py` | `socket.connect((HOST, PORT))` — se conecta ao servidor |
+| Enviar objetos Python (dicionários) pela rede | `server.py` / `client.py` | `send_msg()` converte `dict` → JSON → bytes; `recv_msg()` faz o caminho inverso |
+| Servidor processa dados e retorna resposta | `server.py` | Comando `/data` envia um dicionário, servidor transforma os valores e devolve `data_response` |
+| Servidor identifica cada cliente | `server.py` | `clients: dict[str, dict]` — cada conexão é mapeada pelo `username` enviado no handshake |
+| Chave única por cliente | `server.py` | `generate_key()` chama `Fernet.generate_key()` a cada nova conexão |
+| Criptografia síncrona (simétrica) | `server.py` / `client.py` | **Fernet (AES-128-CBC + HMAC-SHA256)** — mesma chave cifra e decifra |
+| Cliente envia dados criptografados | `client.py` | Após receber a chave, todo `send_msg(conn, data, fernet_global)` usa criptografia |
 
 ### Desafios
 
-| Desafio | Implementação |
-|---------|---------------|
-| Sistema de mensagens entre múltiplos clientes | Função `broadcast()` no terminal; chat global, de sala e de partida na versão web |
-| Mensagem para usuário específico | `/dm <user> <msg>` no terminal; sistema de DM com histórico e badge na versão web |
-| Mensagem para todos conectados | `/all <msg>` no terminal; `socketio.emit()` sem room na versão web |
-| Jogo multiplayer com sockets | "Adivinhe o número" no terminal; NUMRUSH + BATTLEZONE na versão web |
+| Desafio | Arquivo | Como está implementado |
+|---------|---------|------------------------|
+| Sistema de mensagens entre múltiplos clientes | `server.py` | Função `broadcast()` percorre todos os clientes e envia para cada um |
+| Mensagem para usuário específico | `server.py` / `client.py` | `/dm <user> <msg>` — `send_to(username, data)` busca o socket pelo nome e entrega direto |
+| Mensagem para todos conectados | `server.py` / `client.py` | `/all <msg>` — chama `broadcast()` que envia para todos simultaneamente |
+| Jogo multiplayer com sockets | `server.py` / `client.py` | "Adivinhe o número" — servidor sorteia número secreto, clientes enviam `/guess`, servidor responde maior/menor |
 
----
+### O que vai além do exigido (versão web)
 
-## Funcionalidades da versão web
+A versão web (`app.py`) reimplementa todos os requisitos com Flask-SocketIO e adiciona:
 
-### Autenticação
-- Cadastro e login com usuário + senha
-- Sessão persistente via Flask session
-
-### Lobby
-- Lista de salas abertas em tempo real
-- Criação de sala (nome + máx. jogadores + tipo de jogo)
-- Indicador de usuários online atualizado em tempo real
-- Chat global visível a todos
-
-### Jogo
-- Servidor sorteia número entre 1 e 100
-- Todos os chutes de todos ficam visíveis no log da partida
-- Dicas de maior/menor em tempo real
-- Contagem de tentativas por jogador
-- **Vence por WO**: se um jogador sair durante a partida, o restante vence automaticamente
-- Host pode reiniciar após o fim
-
-### Chats (3 canais)
-| Canal | Onde | Quem vê |
-|-------|------|---------|
-| 🌐 Global | Lobby + Jogo | Todos logados |
-| 🏠 Sala | Jogo | Jogadores da sala (pré-jogo) |
-| ⚔️ Partida | Jogo | Jogadores da sala (durante o jogo) |
-
-### Chat Privado (DM)
-- Mensagens diretas entre jogadores (ícone 💬 no canto inferior direito)
-- Histórico por conversa, badge de não-lidos
-- Status online/offline do destinatário em tempo real
-- Abrir conversa direto pelo lobby clicando no nome do jogador
-
-### Presença em tempo real
-- Contador de jogadores online na navbar (atualizado a cada conexão/desconexão)
-- Indicador de status do socket: `⬤ online` / `⬤ reconectando…`
-- Chips de jogadores na sala ficam opacos quando um jogador desconecta
+- Interface gráfica completa no navegador
+- Sistema de salas com múltiplas partidas simultâneas
+- Dois jogos: NUMRUSH e BATTLEZONE
+- 3 canais de chat (global, sala, partida)
+- Chat privado (DM) com histórico e badge de não-lidos
+- Indicador de presença online em tempo real
+- Criptografia XOR+Base64 nas mensagens de chat
+- Suporte a Docker para fácil implantação
 
 ---
 
 ## Criptografia de sessão
 
-### Versão terminal (`server.py` + `client.py`)
-Usa **Fernet** (AES-128-CBC + HMAC-SHA256) da biblioteca `cryptography`:
-1. Servidor gera uma chave Fernet exclusiva por cliente com `Fernet.generate_key()`
-2. Chave é enviada em texto puro — único handshake não cifrado
-3. A partir daí, todas as mensagens usam `fernet.encrypt()` e `fernet.decrypt()`
+### Versão terminal — Fernet (AES-128-CBC)
 
-### Versão web (`app.py`)
-Usa **XOR + Base64** (criptografia síncrona simples implementada no cliente e servidor):
-1. No connect, o servidor gera uma chave aleatória única por usuário (`generate_session_key`)
-2. A chave é enviada ao cliente via Socket.IO — único evento não cifrado
-3. Todas as mensagens de chat são cifradas antes de sair do navegador
-4. O indicador 🔓 / 🔐 na navbar mostra o status da criptografia da sessão
+```
+1. Cliente conecta → envia { type: "hello", username: "joao" }
+2. Servidor gera chave Fernet exclusiva → envia em texto puro
+3. Cliente armazena a chave
+4. Toda mensagem seguinte é criptografada com fernet.encrypt()
+5. Servidor decifra com fernet.decrypt() usando a mesma chave
+```
+
+O **Fernet** é um padrão de criptografia simétrica que combina AES-128-CBC (cifragem) com HMAC-SHA256 (autenticação). A mesma chave que cifra também decifra — por isso é chamado de **simétrico** ou **síncrono**.
+
+### Versão web — XOR + Base64
 
 ```
 Cliente digita:  "olá"
@@ -145,26 +300,7 @@ Vai pela rede:   { msg: "Dz8=", encrypted: true }
 Servidor recebe: decifra → "olá"
 ```
 
----
-
-## Estrutura do projeto
-
-```
-numrush/
-├── server.py           ← Servidor TCP puro (terminal) — requisito principal da atividade
-├── client.py           ← Cliente TCP puro (terminal) — requisito principal da atividade
-├── app.py              ← Flask + SocketIO (versão web completa)
-├── requirements.txt
-├── .gitignore
-├── README.md
-└── templates/
-    ├── base.html       ← Layout base, CSS, DM widget, presença em tempo real
-    ├── index.html      ← Landing page (animação rain, features, how-to)
-    ├── login.html      ← Login / Cadastro
-    ├── lobby.html      ← Lobby + salas + chat global
-    ├── game.html       ← Arena NUMRUSH + 3 chats
-    └── battlezone.html ← Arena BATTLEZONE
-```
+O XOR é o algoritmo simétrico mais simples possível: aplica a mesma operação para cifrar e decifrar. O Base64 converte o resultado binário em texto para trafegar no JSON.
 
 ---
 
