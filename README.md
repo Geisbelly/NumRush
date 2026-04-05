@@ -3,6 +3,16 @@
 
 ---
 
+## Instalação
+
+```bash
+pip install -r requirements.txt
+```
+
+Isso instala todas as dependências de ambos os modos de execução de uma vez.
+
+---
+
 ## Dois modos de execução
 
 O projeto pode ser executado de **duas formas independentes**:
@@ -12,9 +22,6 @@ O projeto pode ser executado de **duas formas independentes**:
 Implementação direta dos requisitos da atividade usando sockets TCP da biblioteca padrão do Python.
 
 ```bash
-# Instalar dependência de criptografia
-pip install cryptography
-
 # Terminal 1 — iniciar o servidor
 python server.py
 
@@ -42,9 +49,6 @@ Após conectar, cada cliente recebe uma chave Fernet exclusiva e pode usar os co
 Versão completa com interface visual, múltiplas salas, chat em 3 canais, DMs e dois jogos.
 
 ```bash
-# Instalar dependências
-pip install flask flask-socketio eventlet
-
 # Iniciar o servidor web
 python app.py
 # Acesse: http://localhost:5000
